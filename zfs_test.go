@@ -61,6 +61,7 @@ func TestZfs(t *testing.T) {
 			t.Logf("ub.RootBP.Padding = %v", ub.RootBP.Padding)
 			t.Logf("ub.RootBP.Props.Compression = %q", ub.RootBP.Props.Compression)
 			t.Logf("ub.RootBP.Props = %#v", ub.RootBP.Props)
+			t.Logf("ub.RootBP.FillCount = %d", ub.RootBP.FillCount)
 			t.Logf("ub.RootBP.BirthTransactionGroup = %d", ub.RootBP.BirthTransactionGroup)
 
 			for idx, vd := range ub.RootBP.Vdevs {
