@@ -17,8 +17,8 @@ func TestSizeofs(t *testing.T) {
 		{Name: "VdevOffset", Value: VdevOffset{}, ExpectedSize: 16},
 		{Name: "BlockPointer", Value: BlockPointer{}, ExpectedSize: 128},
 		{Name: "UberBlock", Value: UberBlock{}, ExpectedSize: 168},
-		{Name: "VdevLabel", Value: VdevLabel{}, ExpectedSize: 168},
-		{Name: "DnodePhys", Value: DnodePhys{}, ExpectedSize: 168},
+		{Name: "VdevLabel", Value: VdevLabel{}, ExpectedSize: 262144},
+		{Name: "DnodePhys", Value: DnodePhys{}, ExpectedSize: 512},
 	}
 
 	t.Logf("%d", 128<<10)
@@ -73,4 +73,20 @@ func TestZfs(t *testing.T) {
 			t.Logf("ub.RootBP.Birth = %s (%d)", tim, ub.RootBP.Birth)
 		}
 	}
+
+	// read phy dnone from first offset.
+	uberBlock := vdl[0].UberBlock()
+	offset := uberBlock[0].RootBP.Vdevs[0].Block()
+	t.Logf("%d", offset)
+
+	if _, err := r.Seek(int64(offset), 0); err != nil {
+		t.Logf("r.Seek(%d, 0) returned %v", offset, err)
+		t.FailNow()
+	}
+
+	// read a DnodePhys into memory
+	dn := DnodePhys{}
+	binary.Read(r, binary.LittleEndian, &dn)
+
+	t.Logf("%#v", dn)
 }
