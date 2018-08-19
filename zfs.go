@@ -13,6 +13,7 @@ package zfs
 
 import (
 	"io"
+	"log"
 	"unsafe"
 )
 
@@ -160,16 +161,24 @@ type BlockPointerProps uint64
 }
 */
 
+func (bpp BlockPointerProps) Embedded() bool {
+	return (uint64(bpp>>39) & 0x01) == 1
+}
+
+func (bpp BlockPointerProps) Lsize() uint8 {
+	return uint8(bpp & 0xff)
+}
+
 func (bpp BlockPointerProps) Compression() uint8 {
-	return uint8(bpp >> 32)
+	return uint8(bpp>>32) & 0x7f
 }
 
 func (bpp BlockPointerProps) Type() uint8 {
-	return uint8(bpp >> 48)
+	return uint8(bpp>>48) & 0xff
 }
 
 func (bpp BlockPointerProps) Checksum() uint8 {
-	return uint8(bpp >> 40)
+	return uint8(bpp>>40) & 0xff
 }
 
 func (bpp BlockPointerProps) Endian() string {
@@ -207,6 +216,9 @@ type UberBlock struct {
 	GuidSum          uint64       // sum of all vdev guids
 	Timestamp        uint64       // time of last sync
 	RootBP           BlockPointer // mos objset_phys_t
+	SoftwareVersion  uint64
+	PAD              [3]uint64
+	CheckpointTx     uint64
 }
 
 type VdevLabel struct {
@@ -217,8 +229,21 @@ type VdevLabel struct {
 }
 
 func (vdl *VdevLabel) UberBlock() []UberBlock {
-	ub := *(*[(128 << 10) / (168 * 8)]UberBlock)(unsafe.Pointer(&vdl.UberBlockBuf))
-	return ub[:]
+	nrecords := uintptr((128 << 10) / (168 * 8))
+	/*
+		ub := *(*[nrecords]UberBlock)(unsafe.Pointer(&vdl.UberBlockBuf))
+	*/
+	p := uintptr(unsafe.Pointer(&vdl.UberBlockBuf))
+
+	for i := uintptr(0); i < nrecords; i++ {
+		ubs := uintptr(1024)
+		log.Printf("i = %d, ubs= %d, %d, p = %X", i, ubs, i*ubs, p+(i*ubs))
+		ub := (*UberBlock)(unsafe.Pointer(p + (i * ubs)))
+		// log.Printf("%#v", ub)
+		log.Printf("%d, %d, %d", i, ub.Timestamp, ub.TransactionGroup)
+	}
+	log.Fatalf("")
+	return nil
 }
 
 type ZfsVdev struct {

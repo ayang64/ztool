@@ -66,15 +66,18 @@ func TestZfs(t *testing.T) {
 			t.Logf("---------- UBER BLOCK %03d ----------", idx)
 			t.Logf("ub.Magic = %010x (valid = %v)", ub.Magic, ub.Magic == 0xbab10c)
 			t.Logf("ub.Version = %d", ub.Version)
+			t.Logf("ub.Checksum = %x", ub.RootBP.ChecksumList)
 			t.Logf("ub.RootBP = %#v", ub.RootBP)
 			t.Logf("ub.RootBP.Padding = %v", ub.RootBP.Padding)
 			t.Logf("ub.RootBP.FillCount = %d", ub.RootBP.FillCount)
 			t.Logf("ub.RootBP.BirthTransactionGroup = %0d", ub.RootBP.BirthTransactionGroup)
-			t.Logf("ub.RootBP.Props = %d (%b)", ub.RootBP.Props, ub.RootBP.Props)
-			t.Logf("ub.RootBP.Props.Endian() = %s", ub.RootBP.Props.Endian())
-			t.Logf("ub.RootBP.Props.Checksum() = %d", ub.RootBP.Props.Checksum())
-			t.Logf("ub.RootBP.Props.Type() = %d", ub.RootBP.Props.Type())
-			t.Logf("ub.RootBP.Props.Compression() = %d", ub.RootBP.Props.Compression())
+			t.Logf("  ub.RootBP.Props = %d (%b)", ub.RootBP.Props, ub.RootBP.Props)
+			t.Logf("  ub.RootBP.Props.Endian() = %s", ub.RootBP.Props.Endian())
+			t.Logf("  ub.RootBP.Props.Type() = %d", ub.RootBP.Props.Type())
+			t.Logf("  ub.RootBP.Props.Checksum() = %d", ub.RootBP.Props.Checksum())
+			t.Logf("  ub.RootBP.Props.Lsize() = %d", ub.RootBP.Props.Lsize())
+			t.Logf("  ub.RootBP.Props.Embedded() = %v", ub.RootBP.Props.Embedded())
+			t.Logf("  ub.RootBP.Props.Compression() = %d", ub.RootBP.Props.Compression())
 			// t.Logf("ub.RootBP.Props.Compression = %q", ub.RootBP.Props.Compression)
 
 			for idx, vd := range ub.RootBP.Vdevs {
@@ -89,7 +92,8 @@ func TestZfs(t *testing.T) {
 
 	// read phy dnone from offsets.
 
-	uberBlock := vdl[0].UberBlock()
+	uberBlock := vdl[1].UberBlock()
+	t.Logf("UBER BLOCK RootBP TYPE: %d", uberBlock[0].RootBP.Props.Type())
 	for idx := range uberBlock[0].RootBP.Vdevs {
 		offset := uberBlock[0].RootBP.Vdevs[idx].Block()
 		t.Logf("%d", offset)
