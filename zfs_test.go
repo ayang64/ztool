@@ -37,7 +37,15 @@ func TestSizeofs(t *testing.T) {
 }
 
 func TestZfs(t *testing.T) {
-	r, err := os.Open("../zbackup0")
+
+	testFilePath := func() string {
+		if rc := os.Getenv("ZFSDATA"); rc != "" {
+			return rc
+		}
+		return "../zbackup0"
+	}
+
+	r, err := os.Open(testFilePath())
 
 	if err != nil {
 		t.Fatalf("could not open vdev: %v", err)
