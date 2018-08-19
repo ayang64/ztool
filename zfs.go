@@ -229,21 +229,34 @@ type VdevLabel struct {
 }
 
 func (vdl *VdevLabel) UberBlock() []UberBlock {
-	nrecords := uintptr((128 << 10) / (168 * 8))
 	/*
+		nrecords := uintptr((128 << 10) / (168 * 8))
 		ub := *(*[nrecords]UberBlock)(unsafe.Pointer(&vdl.UberBlockBuf))
 	*/
 	p := uintptr(unsafe.Pointer(&vdl.UberBlockBuf))
+	// FIXME: this is a magic number.  hard coded 4k uber block size.  this
+	// matches what i've observed but conflicts with the documentation.
+	ubs := uintptr(4096)
+	nrecords := uintptr((128 << 10) / ubs)
+
+	rc := []UberBlock{}
 
 	for i := uintptr(0); i < nrecords; i++ {
-		ubs := uintptr(1024)
-		log.Printf("i = %d, ubs= %d, %d, p = %X", i, ubs, i*ubs, p+(i*ubs))
 		ub := (*UberBlock)(unsafe.Pointer(p + (i * ubs)))
-		// log.Printf("%#v", ub)
-		log.Printf("%d, %d, %d", i, ub.Timestamp, ub.TransactionGroup)
+		if ub.Magic != 0xbab10c {
+			// invalid uber block
+			continue
+		}
+		rc = append(rc, *ub)
 	}
-	log.Fatalf("")
-	return nil
+
+	log.Printf("%#v", rc)
+
+	for idx := range rc {
+		log.Printf("rc[%d].Magic = %x", idx, rc[idx].Magic)
+	}
+
+	return rc
 }
 
 type ZfsVdev struct {
