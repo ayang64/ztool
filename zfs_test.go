@@ -71,10 +71,10 @@ func TestZfs(t *testing.T) {
 			t.Logf("ub.RootBP.FillCount = %d", ub.RootBP.FillCount)
 			t.Logf("ub.RootBP.BirthTransactionGroup = %0d", ub.RootBP.BirthTransactionGroup)
 			t.Logf("ub.RootBP.Props = %d (%b)", ub.RootBP.Props, ub.RootBP.Props)
-			t.Logf("ub.RootBP.Endian() = %s", ub.RootBP.Props.Endian())
-			t.Logf("ub.RootBP.Checksum() = %d", ub.RootBP.Props.Checksum())
-			t.Logf("ub.RootBP.Type() = %d", ub.RootBP.Props.Type())
-			t.Logf("ub.RootBP.Compression() = %d", ub.RootBP.Props.Compression())
+			t.Logf("ub.RootBP.Props.Endian() = %s", ub.RootBP.Props.Endian())
+			t.Logf("ub.RootBP.Props.Checksum() = %d", ub.RootBP.Props.Checksum())
+			t.Logf("ub.RootBP.Props.Type() = %d", ub.RootBP.Props.Type())
+			t.Logf("ub.RootBP.Props.Compression() = %d", ub.RootBP.Props.Compression())
 			// t.Logf("ub.RootBP.Props.Compression = %q", ub.RootBP.Props.Compression)
 
 			for idx, vd := range ub.RootBP.Vdevs {
@@ -87,19 +87,22 @@ func TestZfs(t *testing.T) {
 		}
 	}
 
-	// read phy dnone from first offset.
+	// read phy dnone from offsets.
+
 	uberBlock := vdl[0].UberBlock()
-	offset := uberBlock[0].RootBP.Vdevs[0].Block()
-	t.Logf("%d", offset)
+	for idx := range uberBlock[0].RootBP.Vdevs {
+		offset := uberBlock[0].RootBP.Vdevs[idx].Block()
+		t.Logf("%d", offset)
 
-	if _, err := r.Seek(int64(offset), 0); err != nil {
-		t.Logf("r.Seek(%d, 0) returned %v", offset, err)
-		t.FailNow()
+		if _, err := r.Seek(int64(offset), 0); err != nil {
+			t.Logf("r.Seek(%d, 0) returned %v", offset, err)
+			t.FailNow()
+		}
+
+		// read a DnodePhys into memory
+		dn := DnodePhys{}
+		binary.Read(r, binary.LittleEndian, &dn)
+
+		t.Logf("%#v", dn)
 	}
-
-	// read a DnodePhys into memory
-	dn := DnodePhys{}
-	binary.Read(r, binary.LittleEndian, &dn)
-
-	t.Logf("%#v", dn)
 }

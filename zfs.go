@@ -85,23 +85,23 @@ func (vdo *VdevOffset) Gang() bool {
 // 	};
 
 type DnodePhys struct {
-	Type               uint8           // dn type
-	IndirectBlockShift uint8           // ln2(indirect block size) -- indirect_block_size^2 = size of block?
-	IndirectionLevels  uint8           // 1=dn_blkptr->data blocks
-	BlockPointerLength uint8           // length of dn_blkptr
-	BonusType          uint8           // type of data in bonus buffer
-	Checksum           uint8           // ZIO_CHECKSUM type
-	Compress           uint8           // ZIO_COMPRESS type
-	Flags              uint8           // DNODE_FLAG_*
-	DataBlockSize      uint16          // data block size in 512b sectors
-	BonusLength        uint16          // length of dn_bonus
-	ExtraSlots         uint8           // # of subsequent slots consumed
-	Pad2               [3]uint8        // 3 bytes padding
-	MaxBlockID         uint64          // largest allocated block ID
-	Used               uint64          // bytes (or sectors) of disk space
-	Pad3               [4]uint64       // 24 bytes padding
-	BlockPointer       [3]BlockPointer // FIXME: i need to determine the exact number of items. blkptr_t dn_blkptr[1+DN_OLD_MAX_BONUSLEN/sizeof (blkptr_t)]; // 3 in the docs
-	BONUS              [8]uint64       // not sure what to do with this yet.
+	Type               uint8              // dn type
+	IndirectBlockShift uint8              // ln2(indirect block size) -- indirect_block_size^2 = size of block?
+	IndirectionLevels  uint8              // 1=dn_blkptr->data blocks
+	BlockPointerLength uint8              // length of dn_blkptr
+	BonusType          uint8              // type of data in bonus buffer
+	Checksum           uint8              // ZIO_CHECKSUM type
+	Compress           ZfsCompressionType // ZIO_COMPRESS type
+	Flags              uint8              // DNODE_FLAG_*
+	DataBlockSize      uint16             // data block size in 512b sectors
+	BonusLength        uint16             // length of dn_bonus
+	ExtraSlots         uint8              // # of subsequent slots consumed
+	Pad2               [3]uint8           // 3 bytes padding
+	MaxBlockID         uint64             // largest allocated block ID
+	Used               uint64             // bytes (or sectors) of disk space
+	Pad3               [4]uint64          // 24 bytes padding
+	BlockPointer       [3]BlockPointer    //
+	BONUS              [8]uint64          // not sure what to do with this yet.
 }
 
 type ZfsCompressionType uint8
