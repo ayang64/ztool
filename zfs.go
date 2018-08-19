@@ -11,6 +11,31 @@ type VdevOffset struct {
 	Offset uint64 // first bit is G (whatever that is) and the remainder is the offset into the vdev
 }
 
+func (vdo *VdevOffset) Block() uint64 {
+	// ZFS talks about data in terms of 512byte blocks. the actual location is
+	// 4mb + (512 * offset) the shift gets rid of the G bit which is stored in
+	// the high order bit of vdo.Offset.
+	return (vdo.Offset << 9) + 0x400000
+}
+
+func (vdo *VdevOffset) Gang() bool {
+	// From the "ZFS On Disk Format" document:
+	//
+	// A gang block is a block whose contents contain block pointers. Gang blocks
+	// are used when the amount of space requested is not available in a
+	// contiguous block. In a situation of this kind, several smaller blocks will
+	// be allocated (totaling up to the size requested) and a gang block will be
+	// created to contain the block pointers for the allocated blocks. A pointer
+	// to this gang block is returned to the requester, giving the requester the
+	// perception of a single block.
+	//
+	// Gang blocks are identified by the “G” bit.
+
+	// we do some simple bit shifting to return a bool representing
+	// the most significant bit in our offset.
+	return vdo.Offset&(1<<63) != 0
+}
+
 type ZfsCompressionType uint8
 
 func (zct ZfsCompressionType) String() string {
@@ -67,7 +92,7 @@ type BlockPointer struct {
 	}
 	Padding               [2]uint64 // 	16 bytes padding
 	BirthTransactionGroup uint64    //  8 bytes transaction group for which this block pointer was allocated.
-	Birth                 int64     //  8 bytes transaction group for which this block pointer was allocated.
+	Birth                 uint64    //  8 bytes transaction group for which this block pointer was allocated.
 	FillCount             uint64    //  8 bytes number of non-zero block pointers under this block pointer
 	ChecksumList          [4]uint64 // 32 bytes
 }

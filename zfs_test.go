@@ -36,7 +36,6 @@ func TestSizeofs(t *testing.T) {
 }
 
 func TestZfs(t *testing.T) {
-	vdl := [4]VdevLabel{}
 	r, err := os.Open("../zbackup0")
 
 	if err != nil {
@@ -46,15 +45,8 @@ func TestZfs(t *testing.T) {
 
 	defer r.Close()
 
-	z := ZfsVdev{
-		Back: r,
-	}
-
+	vdl := [2]VdevLabel{}
 	binary.Read(r, binary.LittleEndian, &vdl)
-
-	z = z
-	// t.Logf("vdl = %#v", vdl)
-	// t.Logf("vdl.UberBlocks = %#v", vdl.UberBlocks)
 
 	for idx, v := range vdl {
 		t.Logf("********** HEADER %d **********", idx)
@@ -62,9 +54,7 @@ func TestZfs(t *testing.T) {
 			if ub.Magic != 0xbab10c {
 				continue
 			}
-
 			t.Logf("---------- UBER BLOCK %03d ----------", idx)
-			tim := time.Unix(ub.RootBP.Birth, 0)
 			t.Logf("ub.Magic = %010x (valid = %v)", ub.Magic, ub.Magic == 0xbab10c)
 			t.Logf("ub.Version = %d", ub.Version)
 			t.Logf("ub.RootBP = %#v", ub.RootBP)
@@ -72,8 +62,13 @@ func TestZfs(t *testing.T) {
 			t.Logf("ub.RootBP.Props.Compression = %q", ub.RootBP.Props.Compression)
 			t.Logf("ub.RootBP.Props = %#v", ub.RootBP.Props)
 			t.Logf("ub.RootBP.BirthTransactionGroup = %d", ub.RootBP.BirthTransactionGroup)
-			t.Logf("ub.RootBP.Birth = %s", tim)
+
+			for idx, vd := range ub.RootBP.Vdevs {
+				t.Logf("vdev %03d: %#v, gang = %v, disk offset = %d", idx, vd, vd.Gang(), vd.Block())
+			}
+
+			tim := time.Unix(int64(ub.RootBP.Birth), 0)
+			t.Logf("ub.RootBP.Birth = %s (%d)", tim, ub.RootBP.Birth)
 		}
 	}
-
 }
