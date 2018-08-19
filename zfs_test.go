@@ -37,7 +37,6 @@ func TestSizeofs(t *testing.T) {
 }
 
 func TestZfs(t *testing.T) {
-
 	testFilePath := func() string {
 		if rc := os.Getenv("ZFSDATA"); rc != "" {
 			return rc
@@ -56,13 +55,9 @@ func TestZfs(t *testing.T) {
 
 	vdl := [2]VdevLabel{}
 	binary.Read(r, binary.LittleEndian, &vdl)
-
 	for idx, v := range vdl {
 		t.Logf("********** HEADER %d **********", idx)
 		for idx, ub := range v.UberBlocks() {
-			if ub.Magic != 0xbab10c {
-				continue
-			}
 			t.Logf("---------- UBER BLOCK %03d ----------", idx)
 			t.Logf("ub.Magic = %010x (valid = %v)", ub.Magic, ub.Magic == 0xbab10c)
 			t.Logf("ub.Version = %d", ub.Version)
