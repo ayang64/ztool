@@ -68,13 +68,18 @@ func TestZfs(t *testing.T) {
 			t.Logf("ub.Version = %d", ub.Version)
 			t.Logf("ub.RootBP = %#v", ub.RootBP)
 			t.Logf("ub.RootBP.Padding = %v", ub.RootBP.Padding)
-			t.Logf("ub.RootBP.Props.Compression = %q", ub.RootBP.Props.Compression)
-			t.Logf("ub.RootBP.Props = %#v", ub.RootBP.Props)
 			t.Logf("ub.RootBP.FillCount = %d", ub.RootBP.FillCount)
-			t.Logf("ub.RootBP.BirthTransactionGroup = %d", ub.RootBP.BirthTransactionGroup)
+			t.Logf("ub.RootBP.BirthTransactionGroup = %0d", ub.RootBP.BirthTransactionGroup)
+			t.Logf("ub.RootBP.Props = %d (%b)", ub.RootBP.Props, ub.RootBP.Props)
+			t.Logf("ub.RootBP.Endian() = %s", ub.RootBP.Props.Endian())
+			t.Logf("ub.RootBP.Checksum() = %d", ub.RootBP.Props.Checksum())
+			t.Logf("ub.RootBP.Type() = %d", ub.RootBP.Props.Type())
+			t.Logf("ub.RootBP.Compression() = %d", ub.RootBP.Props.Compression())
+			// t.Logf("ub.RootBP.Props.Compression = %q", ub.RootBP.Props.Compression)
 
 			for idx, vd := range ub.RootBP.Vdevs {
 				t.Logf("vdev %03d: %#v, gang = %v, disk offset = %d", idx, vd, vd.Gang(), vd.Block())
+				t.Logf("    Asize: %d, Size: %d", vd.Asize(), vd.Size)
 			}
 
 			tim := time.Unix(int64(ub.Timestamp), 0)

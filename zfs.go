@@ -22,6 +22,10 @@ type VdevOffset struct {
 	Offset uint64 // first bit is G (whatever that is) and the remainder is the offset into the vdev
 }
 
+func (vdo *VdevOffset) Asize() int {
+	return int(vdo.Size) & 0x0ffffff
+}
+
 func (vdo *VdevOffset) Block() uint64 {
 	// ZFS talks about data in terms of 512byte blocks. the actual location is
 	// 4mb + (512 * offset) the shift gets rid of the G bit which is stored in
@@ -143,22 +147,44 @@ func (zct ZfsCompressionType) String() string {
 //
 // 128 bytes
 
+type BlockPointerProps uint64
+
+/*
+{
+	Level       uint8              // 1
+	Type        uint8              // 1
+	Checksum    uint8              // 1
+	Compression ZfsCompressionType // 1
+	PSize       uint16             // 2
+	LSize       uint16             // 2
+}
+*/
+
+func (bpp BlockPointerProps) Compression() uint8 {
+	return uint8(bpp >> 32)
+}
+
+func (bpp BlockPointerProps) Type() uint8 {
+	return uint8(bpp >> 48)
+}
+
+func (bpp BlockPointerProps) Checksum() uint8 {
+	return uint8(bpp >> 40)
+}
+
+func (bpp BlockPointerProps) Endian() string {
+	return []string{"BigEndian", "LittleEndian"}[(bpp >> 63)]
+}
+
 // SPA data represented as a adata virtual addresses (DVA) - 128bytes
 type BlockPointer struct {
-	Vdevs [3]VdevOffset // 48 bytes
-	Props struct {
-		Level       uint8              // 1
-		Type        uint8              // 1
-		Checksum    uint8              // 1
-		Compression ZfsCompressionType // 1
-		PSize       uint16             // 2
-		LSize       uint16             // 2
-	}
-	Padding               [2]uint64 // 	16 bytes padding
-	BirthTransactionGroup uint64    //  8 bytes transaction group for which this block pointer was allocated.
-	Birth                 uint64    //  8 bytes transaction group for which this block pointer was allocated.
-	FillCount             uint64    //  8 bytes number of non-zero block pointers under this block pointer
-	ChecksumList          [4]uint64 // 32 bytes
+	Vdevs                 [3]VdevOffset     //  48 bytes
+	Props                 BlockPointerProps //   8 bytes Props
+	Padding               [2]uint64         //	16 bytes padding
+	BirthTransactionGroup uint64            //   8 bytes transaction group for which this block pointer was allocated.
+	Birth                 uint64            //   8 bytes transaction group for which this block pointer was allocated.
+	FillCount             uint64            //   8 bytes number of non-zero block pointers under this block pointer
+	ChecksumList          [4]uint64         //  32 bytes
 }
 
 // struct uberblock {
