@@ -69,8 +69,8 @@ func TestZfs(t *testing.T) {
 				t.Logf("vdev %03d: %#v, gang = %v, disk offset = %d", idx, vd, vd.Gang(), vd.Block())
 			}
 
-			tim := time.Unix(int64(ub.RootBP.Birth), 0)
-			t.Logf("ub.RootBP.Birth = %s (%d)", tim, ub.RootBP.Birth)
+			tim := time.Unix(int64(ub.Timestamp), 0)
+			t.Logf("ub.RootBP.Timestamp = %s (%d)", tim, ub.Timestamp)
 		}
 	}
 
