@@ -1,3 +1,14 @@
+/*
+
+	map to beginning of directory hierarchy:
+
+	VdevLabel
+		-> RootBlockPointer
+			-> PhysMetaNote
+
+
+*/
+
 package zfs
 
 import (
@@ -34,6 +45,59 @@ func (vdo *VdevOffset) Gang() bool {
 	// we do some simple bit shifting to return a bool representing
 	// the most significant bit in our offset.
 	return vdo.Offset&(1<<63) != 0
+}
+
+// Cribbed from zfsimpl.h
+//
+// 	uint8_t dn_type;		/* dmu_object_type_t */
+// 	uint8_t dn_indblkshift;		/* ln2(indirect block size) */
+// 	uint8_t dn_nlevels;		/* 1=dn_blkptr->data blocks */
+// 	uint8_t dn_nblkptr;		/* length of dn_blkptr */
+// 	uint8_t dn_bonustype;		/* type of data in bonus buffer */
+// 	uint8_t	dn_checksum;		/* ZIO_CHECKSUM type */
+// 	uint8_t	dn_compress;		/* ZIO_COMPRESS type */
+// 	uint8_t dn_flags;		/* DNODE_FLAG_* */
+// 	uint16_t dn_datablkszsec;	/* data block size in 512b sectors */
+// 	uint16_t dn_bonuslen;		/* length of dn_bonus */
+// 	uint8_t dn_extra_slots;		/* # of subsequent slots consumed */
+// 	uint8_t dn_pad2[3];
+// 	/* accounting is protected by dn_dirty_mtx */
+// 	uint64_t dn_maxblkid;		/* largest allocated block ID */
+// 	uint64_t dn_used;		/* bytes (or sectors) of disk space */
+// 	uint64_t dn_pad3[4];
+// 	blkptr_t dn_blkptr[1+DN_OLD_MAX_BONUSLEN/sizeof (blkptr_t)]; // 3 in the docs
+// 	union {
+// 		blkptr_t dn_blkptr[1+DN_OLD_MAX_BONUSLEN/sizeof (blkptr_t)];
+// 		struct {
+// 			blkptr_t __dn_ignore1;
+// 			uint8_t dn_bonus[DN_OLD_MAX_BONUSLEN];
+// 		};
+// 		struct {
+// 			blkptr_t __dn_ignore2;
+// 			uint8_t __dn_ignore3[DN_OLD_MAX_BONUSLEN -
+// 			    sizeof (blkptr_t)];
+// 			blkptr_t dn_spill;
+// 		};
+// 	};
+
+type DnodePhys struct {
+	Type               uint8           // dn type
+	IndirectBlockShift uint8           // ln2(indirect block size) -- indirect_block_size^2 = size of block?
+	IndirectionLevels  uint8           // 1=dn_blkptr->data blocks
+	BlockPointerLength uint8           // length of dn_blkptr
+	BonusType          uint8           // type of data in bonus buffer
+	Checksum           uint8           // ZIO_CHECKSUM type
+	Compress           uint8           // ZIO_COMPRESS type
+	Flags              uint8           // DNODE_FLAG_*
+	DataBlockSize      uint16          // data block size in 512b sectors
+	BonusLength        uint16          // length of dn_bonus
+	ExtraSlots         uint8           // # of subsequent slots consumed
+	Pad2               [3]uint8        // 3 bytes padding
+	MaxBlockID         uint64          // largest allocated block ID
+	Used               uint64          // bytes (or sectors) of disk space
+	Pad3               [4]uint64       // 24 bytes padding
+	BlockPointer       [3]BlockPointer // FIXME: i need to determine the exact number of items. blkptr_t dn_blkptr[1+DN_OLD_MAX_BONUSLEN/sizeof (blkptr_t)]; // 3 in the docs
+	BONUS              [8]uint64       // not sure what to do with this yet.
 }
 
 type ZfsCompressionType uint8
