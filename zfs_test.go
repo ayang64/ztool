@@ -59,7 +59,7 @@ func TestZfs(t *testing.T) {
 
 	for idx, v := range vdl {
 		t.Logf("********** HEADER %d **********", idx)
-		for idx, ub := range v.UberBlock() {
+		for idx, ub := range v.UberBlocks() {
 			if ub.Magic != 0xbab10c {
 				continue
 			}
@@ -92,10 +92,16 @@ func TestZfs(t *testing.T) {
 
 	// read phy dnone from offsets.
 
-	uberBlock := vdl[1].UberBlock()
-	t.Logf("UBER BLOCK RootBP TYPE: %d", uberBlock[0].RootBP.Props.Type())
-	for idx := range uberBlock[0].RootBP.Vdevs {
-		offset := uberBlock[0].RootBP.Vdevs[idx].Block()
+	uberBlock, err := vdl[1].ActiveUberBlock()
+
+	if err != nil {
+		t.Fatal(err)
+		t.FailNow()
+	}
+
+	t.Logf("UBER BLOCK RootBP TYPE: %d", uberBlock.RootBP.Props.Type())
+	for idx := range uberBlock.RootBP.Vdevs {
+		offset := uberBlock.RootBP.Vdevs[idx].Block()
 		t.Logf("%d", offset)
 
 		if _, err := r.Seek(int64(offset), 0); err != nil {
