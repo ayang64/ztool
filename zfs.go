@@ -16,6 +16,8 @@ import (
 	"io"
 	"time"
 	"unsafe"
+
+	_ "github.com/pierrec/lz4"
 )
 
 type VdevOffset struct {
@@ -170,6 +172,10 @@ func (bpp BlockPointerProps) Lsize() uint8 {
 	return uint8(bpp & 0xff)
 }
 
+func (bpp BlockPointerProps) Psize() uint8 {
+	return uint8((bpp >> 8) & 0xff)
+}
+
 func (bpp BlockPointerProps) Compression() uint8 {
 	return uint8(bpp>>32) & 0x7f
 }
@@ -187,7 +193,7 @@ func (bpp BlockPointerProps) Checksum() uint8 {
 }
 
 func (bpp BlockPointerProps) ChecksumString() string {
-	chkstrings := []string{
+	chk := []string{
 		"ZIO_CHECKSUM_INHERIT",
 		"ZIO_CHECKSUM_ON",
 		"ZIO_CHECKSUM_OFF",
@@ -204,18 +210,14 @@ func (bpp BlockPointerProps) ChecksumString() string {
 		"ZIO_CHECKSUM_EDONR",
 		"ZIO_CHECKSUM_FUNCTIONS",
 	}
-
 	c := int(bpp.Checksum())
-
 	if c < 0 {
 		return "*ERROR-CHECKSUM-UNDER-BOUNDS*"
 	}
-
-	if c > len(chkstrings)-1 {
+	if c > len(chk)-1 {
 		return "*ERROR-CHECKSUM-OVER-BOUNDS*"
 	}
-
-	return chkstrings[c]
+	return chk[c]
 }
 
 func (bpp BlockPointerProps) Endian() string {
@@ -243,6 +245,7 @@ func (bp BlockPointer) String() string {
 		fmt.Sprintf("  Props.Type() = %d\n", bp.Props.Type()) +
 		fmt.Sprintf("  Props.Checksum() = %d (%s)\n", bp.Props.Checksum(), bp.Props.ChecksumString()) +
 		fmt.Sprintf("  Props.Lsize() = %d\n", bp.Props.Lsize()) +
+		fmt.Sprintf("  Props.Psize() = %d\n", bp.Props.Psize()) +
 		fmt.Sprintf("  Props.Embedded() = %v\n", bp.Props.Embedded()) +
 		fmt.Sprintf("  Props.Compression() = %d (%s)\n", bp.Props.Compression(), bp.Props.CompressionString())
 }

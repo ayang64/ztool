@@ -25,12 +25,10 @@ func TestSizeofs(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			typ := reflect.TypeOf(test.Value)
-			// t.Logf("sizeof(%s) = %d bytes aligned at %d", typ.Name(), typ.Size(), typ.Align())
-			if typ.Size() != test.ExpectedSize {
-				t.Fatalf("Size of %s is %d bytes, expected %d (%d bytes)", typ.Name(), typ.Size(), test.ExpectedSize, test.ExpectedSize/8)
+			if typ := reflect.TypeOf(test.Value); typ.Size() != test.ExpectedSize {
+				t.Fatalf("Size of %s is %d bytes, expected %d (%d bytes)",
+					typ.Name(), typ.Size(), test.ExpectedSize, test.ExpectedSize/8)
 				t.FailNow()
-				return
 			}
 		})
 	}
