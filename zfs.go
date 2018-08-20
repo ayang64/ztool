@@ -14,7 +14,7 @@ package zfs
 import (
 	"fmt"
 	"io"
-	"log"
+	"time"
 	"unsafe"
 )
 
@@ -173,6 +173,10 @@ func (bpp BlockPointerProps) Lsize() uint8 {
 func (bpp BlockPointerProps) Compression() uint8 {
 	return uint8(bpp>>32) & 0x7f
 }
+func (bpp BlockPointerProps) CompressionString() string {
+	cmptyp := ZfsCompressionType(bpp.Compression())
+	return cmptyp.String()
+}
 
 func (bpp BlockPointerProps) Type() uint8 {
 	return uint8(bpp>>48) & 0xff
@@ -180,6 +184,38 @@ func (bpp BlockPointerProps) Type() uint8 {
 
 func (bpp BlockPointerProps) Checksum() uint8 {
 	return uint8(bpp>>40) & 0xff
+}
+
+func (bpp BlockPointerProps) ChecksumString() string {
+	chkstrings := []string{
+		"ZIO_CHECKSUM_INHERIT",
+		"ZIO_CHECKSUM_ON",
+		"ZIO_CHECKSUM_OFF",
+		"ZIO_CHECKSUM_LABEL",
+		"ZIO_CHECKSUM_GANG_HEADER",
+		"ZIO_CHECKSUM_ZILOG",
+		"ZIO_CHECKSUM_FLETCHER_2",
+		"ZIO_CHECKSUM_FLETCHER_4",
+		"ZIO_CHECKSUM_SHA256",
+		"ZIO_CHECKSUM_ZILOG2",
+		"ZIO_CHECKSUM_NOPARITY",
+		"ZIO_CHECKSUM_SHA512",
+		"ZIO_CHECKSUM_SKEIN",
+		"ZIO_CHECKSUM_EDONR",
+		"ZIO_CHECKSUM_FUNCTIONS",
+	}
+
+	c := int(bpp.Checksum())
+
+	if c < 0 {
+		return "*ERROR-CHECKSUM-UNDER-BOUNDS*"
+	}
+
+	if c > len(chkstrings)-1 {
+		return "*ERROR-CHECKSUM-OVER-BOUNDS*"
+	}
+
+	return chkstrings[c]
 }
 
 func (bpp BlockPointerProps) Endian() string {
@@ -195,6 +231,20 @@ type BlockPointer struct {
 	Birth                 uint64            //   8 bytes transaction group for which this block pointer was allocated.
 	FillCount             uint64            //   8 bytes number of non-zero block pointers under this block pointer
 	ChecksumList          [4]uint64         //  32 bytes
+}
+
+func (bp BlockPointer) String() string {
+	return fmt.Sprintf("BirthTransactionGroup %d", bp.BirthTransactionGroup) +
+		fmt.Sprintf("Birth: %d", bp.Birth) +
+		fmt.Sprintf("Fill Count: %d", bp.FillCount) +
+		fmt.Sprintf("Checksum: %d\n", bp.ChecksumList) +
+		fmt.Sprintf("  Props = %d (%b)\n", bp.Props, bp.Props) +
+		fmt.Sprintf("  Props.Endian() = %s\n", bp.Props.Endian()) +
+		fmt.Sprintf("  Props.Type() = %d\n", bp.Props.Type()) +
+		fmt.Sprintf("  Props.Checksum() = %d (%s)\n", bp.Props.Checksum(), bp.Props.ChecksumString()) +
+		fmt.Sprintf("  Props.Lsize() = %d\n", bp.Props.Lsize()) +
+		fmt.Sprintf("  Props.Embedded() = %v\n", bp.Props.Embedded()) +
+		fmt.Sprintf("  Props.Compression() = %d (%s)\n", bp.Props.Compression(), bp.Props.CompressionString())
 }
 
 // struct uberblock {
@@ -217,9 +267,20 @@ type UberBlock struct {
 	GuidSum          uint64       // sum of all vdev guids
 	Timestamp        uint64       // time of last sync
 	RootBP           BlockPointer // mos objset_phys_t
-	SoftwareVersion  uint64
-	PAD              [3]uint64
-	CheckpointTx     uint64
+	SoftwareVersion  uint64       // FreeBSD is usually 5000
+	PAD              [3]uint64    // padding
+	CheckpointTx     uint64       // Checkpoint Transaction
+}
+
+func (ub *UberBlock) String() string {
+	return fmt.Sprintf("\nMagic: %08x (valid: %v), ", ub.Magic, ub.Magic == 0xbab10c) +
+		fmt.Sprintf("Version: %d, ", ub.Version) +
+		fmt.Sprintf("TrasnactionGroup: %d, ", ub.TransactionGroup) +
+		fmt.Sprintf("Timestamp: %s (%d)\n", time.Unix(int64(ub.Timestamp), 0), ub.Timestamp) +
+		fmt.Sprintf("GUID Sum: %x, ", ub.GuidSum) +
+		fmt.Sprintf("SoftwareVersion: %d, ", ub.SoftwareVersion) +
+		fmt.Sprintf("Checkpoint Transaction: %x\n", ub.CheckpointTx) +
+		fmt.Sprintf("%s", ub.RootBP)
 }
 
 type VdevLabel struct {
@@ -262,10 +323,6 @@ func (vdl *VdevLabel) UberBlocks() []UberBlock {
 			continue
 		}
 		rc = append(rc, *ub)
-	}
-
-	for idx := range rc {
-		log.Printf("rc[%d].Magic = %x", idx, rc[idx].Magic)
 	}
 	return rc
 }

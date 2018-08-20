@@ -14,19 +14,19 @@ func TestSizeofs(t *testing.T) {
 		Value        interface{}
 		ExpectedSize uintptr
 	}{
-		{Name: "VdevOffset", Value: VdevOffset{}, ExpectedSize: 16},
 		{Name: "BlockPointer", Value: BlockPointer{}, ExpectedSize: 128},
-		{Name: "UberBlock", Value: UberBlock{}, ExpectedSize: 168},
-		{Name: "VdevLabel", Value: VdevLabel{}, ExpectedSize: 262144},
 		{Name: "DnodePhys", Value: DnodePhys{}, ExpectedSize: 512},
+		{Name: "UberBlock", Value: UberBlock{}, ExpectedSize: 208},
+		{Name: "VdevLabel", Value: VdevLabel{}, ExpectedSize: 262144},
+		{Name: "VdevOffset", Value: VdevOffset{}, ExpectedSize: 16},
 	}
 
-	t.Logf("%d", 128<<10)
+	t.Parallel()
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
 			typ := reflect.TypeOf(test.Value)
-			t.Logf("sizeof(%s) = %d bytes aligned at %d", typ.Name(), typ.Size(), typ.Align())
+			// t.Logf("sizeof(%s) = %d bytes aligned at %d", typ.Name(), typ.Size(), typ.Align())
 			if typ.Size() != test.ExpectedSize {
 				t.Fatalf("Size of %s is %d bytes, expected %d (%d bytes)", typ.Name(), typ.Size(), test.ExpectedSize, test.ExpectedSize/8)
 				t.FailNow()
@@ -59,27 +59,13 @@ func TestZfs(t *testing.T) {
 		t.Logf("********** HEADER %d **********", idx)
 		for idx, ub := range v.UberBlocks() {
 			t.Logf("---------- UBER BLOCK %03d ----------", idx)
-			t.Logf("ub.Magic = %010x (valid = %v)", ub.Magic, ub.Magic == 0xbab10c)
-			t.Logf("ub.Version = %d", ub.Version)
-			t.Logf("ub.Checksum = %x", ub.RootBP.ChecksumList)
-			t.Logf("ub.RootBP = %#v", ub.RootBP)
-			t.Logf("ub.RootBP.Padding = %v", ub.RootBP.Padding)
-			t.Logf("ub.RootBP.FillCount = %d", ub.RootBP.FillCount)
-			t.Logf("ub.RootBP.BirthTransactionGroup = %0d", ub.RootBP.BirthTransactionGroup)
-			t.Logf("  ub.RootBP.Props = %d (%b)", ub.RootBP.Props, ub.RootBP.Props)
-			t.Logf("  ub.RootBP.Props.Endian() = %s", ub.RootBP.Props.Endian())
-			t.Logf("  ub.RootBP.Props.Type() = %d", ub.RootBP.Props.Type())
-			t.Logf("  ub.RootBP.Props.Checksum() = %d", ub.RootBP.Props.Checksum())
-			t.Logf("  ub.RootBP.Props.Lsize() = %d", ub.RootBP.Props.Lsize())
-			t.Logf("  ub.RootBP.Props.Embedded() = %v", ub.RootBP.Props.Embedded())
-			t.Logf("  ub.RootBP.Props.Compression() = %d", ub.RootBP.Props.Compression())
-			// t.Logf("ub.RootBP.Props.Compression = %q", ub.RootBP.Props.Compression)
+
+			t.Logf("%s", &ub)
 
 			for idx, vd := range ub.RootBP.Vdevs {
 				t.Logf("vdev %03d: %#v, gang = %v, disk offset = %d", idx, vd, vd.Gang(), vd.Block())
 				t.Logf("    Asize: %d, Size: %d", vd.Asize(), vd.Size)
 			}
-
 			tim := time.Unix(int64(ub.Timestamp), 0)
 			t.Logf("ub.RootBP.Timestamp = %s (%d)", tim, ub.Timestamp)
 		}
@@ -94,7 +80,8 @@ func TestZfs(t *testing.T) {
 		t.FailNow()
 	}
 
-	t.Logf("UBER BLOCK RootBP TYPE: %d", uberBlock.RootBP.Props.Type())
+	t.Logf("ACTIVE UBER BLOCK: %#v", uberBlock)
+
 	for idx := range uberBlock.RootBP.Vdevs {
 		offset := uberBlock.RootBP.Vdevs[idx].Block()
 		t.Logf("%d", offset)
@@ -109,5 +96,7 @@ func TestZfs(t *testing.T) {
 		binary.Read(r, binary.LittleEndian, &dn)
 
 		t.Logf("%#v", dn)
+
+		t.Logf("compression type: %s", dn.Compress)
 	}
 }
