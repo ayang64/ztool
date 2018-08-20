@@ -1,7 +1,7 @@
 SOURCES	:= $(wildcard *.c)
 OBJECTS	:= $(SOURCES:.c=.o)
 
-CFLAGS	+= -MMD -std=gnu99 -I/usr/src/sys/cddl/contrib/opensolaris/uts/common/
+CFLAGS	+= -MMD -W -Wall -std=gnu99 -I/usr/src/sys/cddl/contrib/opensolaris/uts/common/
 
 .PHONY : clean
 
@@ -13,4 +13,4 @@ $(OBJECTS) : $(SOURCES)
 -include *.d
 
 clean:
-	rm $(OBJECTS) *.d zle-test
+	rm -f $(OBJECTS) *.d zle-test
