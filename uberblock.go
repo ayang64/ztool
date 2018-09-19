@@ -2,6 +2,7 @@ package zfs
 
 import (
 	"fmt"
+	"io"
 	"time"
 )
 
@@ -19,15 +20,21 @@ import (
 // UberBlock -- 1024bits - 128bytes
 // comments cribbed from /usr/src/sys/cddl/boot/zfs/zfssimpl.h
 type UberBlock struct {
-	Magic            uint64        // magic 0x00babl0c (oo-ba-bloc!)
-	Version          uint64        // SPA Version
-	TransactionGroup uint64        // transaction group of last sync
-	GuidSum          uint64        // sum of all vdev guids
-	Timestamp        uint64        // time of last sync
-	RootBP           MetaObjectSet // mos objset_phys_t
-	SoftwareVersion  uint64        // FreeBSD is usually 5000
-	PAD              [3]uint64     // padding
-	CheckpointTx     uint64        // Checkpoint Transaction
+	Magic            uint64       // magic 0x00babl0c (oo-ba-bloc!)
+	Version          uint64       // SPA Version
+	TransactionGroup uint64       // transaction group of last sync
+	GuidSum          uint64       // sum of all vdev guids
+	Timestamp        uint64       // time of last sync
+	RootBP           BlockPointer // mos objset_phys_t
+	SoftwareVersion  uint64       // FreeBSD is usually 5000
+	PAD              [3]uint64    // padding
+	CheckpointTx     uint64       // Checkpoint Transaction
+}
+
+func (ub *UberBlock) MOS(rs io.ReadSeeker) (*DnodePhys, error) {
+	// the MOS is always element 1 in the UberBlocks's Vdev
+	// list.
+	return ub.RootBP.GetRootBlock(rs)
 }
 
 func (ub *UberBlock) String() string {

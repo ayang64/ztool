@@ -1,5 +1,10 @@
 package zfs
 
+import (
+	"fmt"
+	"unsafe"
+)
+
 type VdevLabel struct {
 	BlankSpace      [8 << 10]byte   // 8k blank to accommodate os data
 	BootBlockHeader [8 << 10]byte   // 8k reserved blank space

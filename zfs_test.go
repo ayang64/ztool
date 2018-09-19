@@ -67,14 +67,11 @@ func TestSizeofs(t *testing.T) {
 }
 
 func TestZfs(t *testing.T) {
-
 	r, err := os.Open(testFilePath())
-
 	if err != nil {
 		t.Fatalf("could not open vdev: %v", err)
 		t.FailNow()
 	}
-
 	defer r.Close()
 
 	vdl := [2]VdevLabel{}
@@ -105,25 +102,23 @@ func TestZfs(t *testing.T) {
 	}
 
 	t.Logf("ACTIVE UBER BLOCK: %#v", uberBlock)
-
 	for idx := range uberBlock.RootBP.Vdevs {
 		offset := uberBlock.RootBP.Vdevs[idx].Offset
 		t.Logf(">>> %d", offset)
-
 		if _, err := r.Seek(int64(offset), 0); err != nil {
 			t.Logf("r.Seek(%d, 0) returned %v", offset, err)
 			t.FailNow()
 		}
 
-		// read a DnodePhys into memory
-		/*
-			dn := DnodePhys{}
-			binary.Read(r, binary.LittleEndian, &dn)
-		*/
-		dn, _ := uberBlock.RootBP.GetRootBlock(r)
+		// fetch MOS
+		dn, err := uberBlock.MOS(r)
 
+		if err != nil {
+			t.Logf("uberBlock.MOS(r) failed: %v", err)
+			t.FailNow()
+
+		}
 		t.Logf("### %#v", dn)
-
 		t.Logf("compression type: %s", dn.Compress)
 	}
 }

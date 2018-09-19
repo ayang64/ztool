@@ -32,7 +32,7 @@ func (bp BlockPointer) String() string {
 		fmt.Sprintf("  Props.Compression() = %d (%s)\n", bp.Props.Compression(), bp.Props.CompressionString())
 }
 
-func (bp BlockPointer) GetRootBlock(r io.ReadSeeker) (*DnodePhys, error) {
+func (bp *BlockPointer) GetRootBlock(r io.ReadSeeker) (*DnodePhys, error) {
 	log.Printf("offset = %d", bp.Vdevs[1].Block())
 	if _, err := r.Seek(int64(bp.Vdevs[1].Offset), io.SeekStart); err != nil {
 		log.Printf("err: %v", err)

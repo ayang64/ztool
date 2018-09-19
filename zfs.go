@@ -13,8 +13,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"time"
-	"unsafe"
 
 	"github.com/pierrec/lz4"
 )
