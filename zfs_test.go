@@ -2,11 +2,43 @@ package zfs
 
 import (
 	"encoding/binary"
+	"log"
 	"os"
 	"reflect"
 	"testing"
 	"time"
 )
+
+func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+}
+func testFilePath() string {
+	// ZFSDATA overrides hostname.
+	if rc := os.Getenv("ZFSDATA"); rc != "" {
+		return rc
+	}
+	if n, _ := os.Hostname(); n == "jade.ayan.net" {
+		return "/dev/label/zbackup0"
+	}
+	return "../zbackup0"
+}
+
+func TestSeek(t *testing.T) {
+	inf, err := os.Open(testFilePath())
+
+	if err != nil {
+		t.Fatalf("error: %v", err)
+		t.FailNow()
+	}
+
+	s, err := inf.Stat()
+	if err != nil {
+		t.Fatalf("error: %v", err)
+		t.FailNow()
+	}
+
+	t.Logf("s = %#v", s)
+}
 
 func TestSizeofs(t *testing.T) {
 	tests := []struct {
@@ -35,12 +67,6 @@ func TestSizeofs(t *testing.T) {
 }
 
 func TestZfs(t *testing.T) {
-	testFilePath := func() string {
-		if rc := os.Getenv("ZFSDATA"); rc != "" {
-			return rc
-		}
-		return "../zbackup0"
-	}
 
 	r, err := os.Open(testFilePath())
 
@@ -81,8 +107,8 @@ func TestZfs(t *testing.T) {
 	t.Logf("ACTIVE UBER BLOCK: %#v", uberBlock)
 
 	for idx := range uberBlock.RootBP.Vdevs {
-		offset := uberBlock.RootBP.Vdevs[idx].Block()
-		t.Logf("%d", offset)
+		offset := uberBlock.RootBP.Vdevs[idx].Offset
+		t.Logf(">>> %d", offset)
 
 		if _, err := r.Seek(int64(offset), 0); err != nil {
 			t.Logf("r.Seek(%d, 0) returned %v", offset, err)
@@ -90,10 +116,13 @@ func TestZfs(t *testing.T) {
 		}
 
 		// read a DnodePhys into memory
-		dn := DnodePhys{}
-		binary.Read(r, binary.LittleEndian, &dn)
+		/*
+			dn := DnodePhys{}
+			binary.Read(r, binary.LittleEndian, &dn)
+		*/
+		dn, _ := uberBlock.RootBP.GetRootBlock(r)
 
-		t.Logf("%#v", dn)
+		t.Logf("### %#v", dn)
 
 		t.Logf("compression type: %s", dn.Compress)
 	}
