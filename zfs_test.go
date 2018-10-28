@@ -18,7 +18,7 @@ func testFilePath() string {
 		return rc
 	}
 	if n, _ := os.Hostname(); n == "jade.ayan.net" {
-		return "/dev/label/zbackup0"
+		return "/obrovsky/recovery/zbackup0"
 	}
 	return "../zbackup0"
 }
@@ -67,7 +67,10 @@ func TestSizeofs(t *testing.T) {
 }
 
 func TestZfs(t *testing.T) {
+	t.Logf("--------------------------------------")
+
 	r, err := os.Open(testFilePath())
+
 	if err != nil {
 		t.Fatalf("could not open vdev: %v", err)
 		t.FailNow()
@@ -94,7 +97,9 @@ func TestZfs(t *testing.T) {
 
 	// read phy dnone from offsets.
 
-	uberBlock, err := vdl[1].ActiveUberBlock()
+	uberBlock, err := vdl[0].ActiveUberBlock()
+
+	t.Logf("uberBlock: %s", uberBlock)
 
 	if err != nil {
 		t.Fatal(err)
@@ -102,23 +107,13 @@ func TestZfs(t *testing.T) {
 	}
 
 	t.Logf("ACTIVE UBER BLOCK: %#v", uberBlock)
-	for idx := range uberBlock.RootBP.Vdevs {
-		offset := uberBlock.RootBP.Vdevs[idx].Offset
-		t.Logf(">>> %d", offset)
-		if _, err := r.Seek(int64(offset), 0); err != nil {
-			t.Logf("r.Seek(%d, 0) returned %v", offset, err)
-			t.FailNow()
-		}
+	dn, err := uberBlock.MOS(r)
 
-		// fetch MOS
-		dn, err := uberBlock.MOS(r)
-
-		if err != nil {
-			t.Logf("uberBlock.MOS(r) failed: %v", err)
-			t.FailNow()
-
-		}
-		t.Logf("### %#v", dn)
-		t.Logf("compression type: %s", dn.Compress)
+	if err != nil {
+		t.Logf("uberBlock.MOS(r) failed: %v", err)
+		t.FailNow()
 	}
+
+	t.Logf("### %#v", dn)
+	t.Logf("compression type: %s", dn.Compress)
 }

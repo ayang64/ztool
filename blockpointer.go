@@ -34,7 +34,7 @@ func (bp BlockPointer) String() string {
 
 func (bp *BlockPointer) GetRootBlock(r io.ReadSeeker) (*DnodePhys, error) {
 	log.Printf("offset = %d", bp.Vdevs[1].Block())
-	if _, err := r.Seek(int64(bp.Vdevs[1].Offset), io.SeekStart); err != nil {
+	if _, err := r.Seek(int64(bp.Vdevs[1].Block()), io.SeekStart); err != nil {
 		log.Printf("err: %v", err)
 		return nil, err
 	}
