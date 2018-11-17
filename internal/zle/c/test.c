@@ -5,8 +5,8 @@
 #include "zle.h"
 
 void
-dumpslice(char *s, size_t l) {
-	printf("[]byte{ ");
+dumpslice(char *n, char *s, size_t l) {
+	printf("%s := []byte{ ", n);
 	for (size_t i = 0; i < l; i++) {
 		printf("%d, ", s[i]);
 	}
@@ -24,11 +24,11 @@ main(
 	void		*cmp = malloc(srclen),
 					*dcm = malloc(srclen);
 
-	size_t	cmplen =   zle_compress(src, cmp, srclen, srclen, 2),
-					dcmlen = zle_decompress(cmp, dcm, cmplen, srclen, 2);
+	size_t	cmplen =   zle_compress(src, cmp, srclen, srclen, 8),
+					dcmrem = zle_decompress(cmp, dcm, cmplen, srclen, 8);
 
-	printf("// srclen = %zu, dcmlen = %zu\n", srclen, dcmlen);
-	dumpslice(src, srclen);
-	dumpslice(cmp, cmplen);
-	dumpslice(dcm, srclen);
+	printf("// srclen = %zu, dcmrem = %zu\n", srclen, dcmrem);
+	dumpslice("src", src, srclen);
+	dumpslice("cmp", cmp, cmplen);
+	dumpslice("dcm", dcm, srclen);
 }

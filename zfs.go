@@ -14,6 +14,7 @@ package zfs
 import (
 	"fmt"
 	"io"
+	"log"
 	"time"
 	"unsafe"
 
@@ -55,6 +56,162 @@ func (vdo *VdevOffset) Gang() bool {
 	return vdo.Offset&(1<<63) != 0
 }
 
+//typedef enum dmu_object_type {
+//	DMU_OT_NONE,
+//	/* general: */
+//	DMU_OT_OBJECT_DIRECTORY,	/* ZAP */
+//	DMU_OT_OBJECT_ARRAY,		/* UINT64 */
+//	DMU_OT_PACKED_NVLIST,		/* UINT8 (XDR by nvlist_pack/unpack) */
+//	DMU_OT_PACKED_NVLIST_SIZE,	/* UINT64 */
+//	DMU_OT_BPLIST,			/* UINT64 */
+//	DMU_OT_BPLIST_HDR,		/* UINT64 */
+//	/* spa: */
+//	DMU_OT_SPACE_MAP_HEADER,	/* UINT64 */
+//	DMU_OT_SPACE_MAP,		/* UINT64 */
+//	/* zil: */
+//	DMU_OT_INTENT_LOG,		/* UINT64 */
+//	/* dmu: */
+//	DMU_OT_DNODE,			/* DNODE */
+//	DMU_OT_OBJSET,			/* OBJSET */
+//	/* dsl: */
+//	DMU_OT_DSL_DIR,			/* UINT64 */
+//	DMU_OT_DSL_DIR_CHILD_MAP,	/* ZAP */
+//	DMU_OT_DSL_DS_SNAP_MAP,		/* ZAP */
+//	DMU_OT_DSL_PROPS,		/* ZAP */
+//	DMU_OT_DSL_DATASET,		/* UINT64 */
+//	/* zpl: */
+//	DMU_OT_ZNODE,			/* ZNODE */
+//	DMU_OT_OLDACL,			/* Old ACL */
+//	DMU_OT_PLAIN_FILE_CONTENTS,	/* UINT8 */
+//	DMU_OT_DIRECTORY_CONTENTS,	/* ZAP */
+//	DMU_OT_MASTER_NODE,		/* ZAP */
+//	DMU_OT_UNLINKED_SET,		/* ZAP */
+//	/* zvol: */
+//	DMU_OT_ZVOL,			/* UINT8 */
+//	DMU_OT_ZVOL_PROP,		/* ZAP */
+//	/* other; for testing only! */
+//	DMU_OT_PLAIN_OTHER,		/* UINT8 */
+//	DMU_OT_UINT64_OTHER,		/* UINT64 */
+//	DMU_OT_ZAP_OTHER,		/* ZAP */
+//	/* new object types: */
+//	DMU_OT_ERROR_LOG,		/* ZAP */
+//	DMU_OT_SPA_HISTORY,		/* UINT8 */
+//	DMU_OT_SPA_HISTORY_OFFSETS,	/* spa_his_phys_t */
+//	DMU_OT_POOL_PROPS,		/* ZAP */
+//	DMU_OT_DSL_PERMS,		/* ZAP */
+//	DMU_OT_ACL,			/* ACL */
+//	DMU_OT_SYSACL,			/* SYSACL */
+//	DMU_OT_FUID,			/* FUID table (Packed NVLIST UINT8) */
+//	DMU_OT_FUID_SIZE,		/* FUID table size UINT64 */
+//	DMU_OT_NEXT_CLONES,		/* ZAP */
+//	DMU_OT_SCAN_QUEUE,		/* ZAP */
+//	DMU_OT_USERGROUP_USED,		/* ZAP */
+//	DMU_OT_USERGROUP_QUOTA,		/* ZAP */
+//	DMU_OT_USERREFS,		/* ZAP */
+//	DMU_OT_DDT_ZAP,			/* ZAP */
+//	DMU_OT_DDT_STATS,		/* ZAP */
+//	DMU_OT_SA,			/* System attr */
+//	DMU_OT_SA_MASTER_NODE,		/* ZAP */
+//	DMU_OT_SA_ATTR_REGISTRATION,	/* ZAP */
+//	DMU_OT_SA_ATTR_LAYOUTS,		/* ZAP */
+//	DMU_OT_SCAN_XLATE,		/* ZAP */
+//	DMU_OT_DEDUP,			/* fake dedup BP from ddt_bp_create() */
+//	DMU_OT_NUMTYPES,
+//	/*
+//	 * Names for valid types declared with DMU_OT().
+//	 */
+//	DMU_OTN_UINT8_DATA = DMU_OT(DMU_BSWAP_UINT8, B_FALSE),
+//	DMU_OTN_UINT8_METADATA = DMU_OT(DMU_BSWAP_UINT8, B_TRUE),
+//	DMU_OTN_UINT16_DATA = DMU_OT(DMU_BSWAP_UINT16, B_FALSE),
+//	DMU_OTN_UINT16_METADATA = DMU_OT(DMU_BSWAP_UINT16, B_TRUE),
+//	DMU_OTN_UINT32_DATA = DMU_OT(DMU_BSWAP_UINT32, B_FALSE),
+//	DMU_OTN_UINT32_METADATA = DMU_OT(DMU_BSWAP_UINT32, B_TRUE),
+//	DMU_OTN_UINT64_DATA = DMU_OT(DMU_BSWAP_UINT64, B_FALSE),
+//	DMU_OTN_UINT64_METADATA = DMU_OT(DMU_BSWAP_UINT64, B_TRUE),
+//	DMU_OTN_ZAP_DATA = DMU_OT(DMU_BSWAP_ZAP, B_FALSE),
+//	DMU_OTN_ZAP_METADATA = DMU_OT(DMU_BSWAP_ZAP, B_TRUE)
+//} dmu_object_type_t;
+
+type DmuObjectType uint8
+
+const (
+	//typedef enum dmu_object_type {
+	DMU_OT_NONE = DmuObjectType(iota)
+	//	/* general: */
+	DMU_OT_OBJECT_DIRECTORY   /* ZAP */
+	DMU_OT_OBJECT_ARRAY       /* UINT64 */
+	DMU_OT_PACKED_NVLIST      /* UINT8 (XDR by nvlist_pack/unpack) */
+	DMU_OT_PACKED_NVLIST_SIZE /* UINT64 */
+	DMU_OT_BPLIST             /* UINT64 */
+	DMU_OT_BPLIST_HDR         /* UINT64 */
+	//	/* spa: */
+	DMU_OT_SPACE_MAP_HEADER /* UINT64 */
+	DMU_OT_SPACE_MAP        /* UINT64 */
+	//	/* zil: */
+	DMU_OT_INTENT_LOG /* UINT64 */
+	//	/* dmu: */
+	DMU_OT_DNODE  /* DNODE */
+	DMU_OT_OBJSET /* OBJSET */
+	//	/* dsl: */
+	DMU_OT_DSL_DIR           /* UINT64 */
+	DMU_OT_DSL_DIR_CHILD_MAP /* ZAP */
+	DMU_OT_DSL_DS_SNAP_MAP   /* ZAP */
+	DMU_OT_DSL_PROPS         /* ZAP */
+	DMU_OT_DSL_DATASET       /* UINT64 */
+	//	/* zpl: */
+	DMU_OT_ZNODE               /* ZNODE */
+	DMU_OT_OLDACL              /* Old ACL */
+	DMU_OT_PLAIN_FILE_CONTENTS /* UINT8 */
+	DMU_OT_DIRECTORY_CONTENTS  /* ZAP */
+	DMU_OT_MASTER_NODE         /* ZAP */
+	DMU_OT_UNLINKED_SET        /* ZAP */
+	//	/* zvol: */
+	DMU_OT_ZVOL      /* UINT8 */
+	DMU_OT_ZVOL_PROP /* ZAP */
+	//	/* other; for testing only! */
+	DMU_OT_PLAIN_OTHER  /* UINT8 */
+	DMU_OT_UINT64_OTHER /* UINT64 */
+	DMU_OT_ZAP_OTHER    /* ZAP */
+	//	/* new object types: */
+	DMU_OT_ERROR_LOG            /* ZAP */
+	DMU_OT_SPA_HISTORY          /* UINT8 */
+	DMU_OT_SPA_HISTORY_OFFSETS  /* spa_his_phys_t */
+	DMU_OT_POOL_PROPS           /* ZAP */
+	DMU_OT_DSL_PERMS            /* ZAP */
+	DMU_OT_ACL                  /* ACL */
+	DMU_OT_SYSACL               /* SYSACL */
+	DMU_OT_FUID                 /* FUID table (Packed NVLIST UINT8) */
+	DMU_OT_FUID_SIZE            /* FUID table size UINT64 */
+	DMU_OT_NEXT_CLONES          /* ZAP */
+	DMU_OT_SCAN_QUEUE           /* ZAP */
+	DMU_OT_USERGROUP_USED       /* ZAP */
+	DMU_OT_USERGROUP_QUOTA      /* ZAP */
+	DMU_OT_USERREFS             /* ZAP */
+	DMU_OT_DDT_ZAP              /* ZAP */
+	DMU_OT_DDT_STATS            /* ZAP */
+	DMU_OT_SA                   /* System attr */
+	DMU_OT_SA_MASTER_NODE       /* ZAP */
+	DMU_OT_SA_ATTR_REGISTRATION /* ZAP */
+	DMU_OT_SA_ATTR_LAYOUTS      /* ZAP */
+	DMU_OT_SCAN_XLATE           /* ZAP */
+	DMU_OT_DEDUP                /* fake dedup BP from ddt_bp_create() */
+	DMU_OT_NUMTYPES
+	//	/*
+	//	 * Names for valid types declared with DMU_OT().
+	//	 */
+	DMU_OTN_UINT8_DATA      //  = DMU_OT(DMU_BSWAP_UINT8, B_FALSE),
+	DMU_OTN_UINT8_METADATA  // = DMU_OT(DMU_BSWAP_UINT8, B_TRUE),
+	DMU_OTN_UINT16_DATA     /// = DMU_OT(DMU_BSWAP_UINT16, B_FALSE),
+	DMU_OTN_UINT16_METADATA // = DMU_OT(DMU_BSWAP_UINT16, B_TRUE),
+	DMU_OTN_UINT32_DATA     //  = DMU_OT(DMU_BSWAP_UINT32, B_FALSE),
+	DMU_OTN_UINT32_METADATA //  = DMU_OT(DMU_BSWAP_UINT32, B_TRUE),
+	DMU_OTN_UINT64_DATA     //  = DMU_OT(DMU_BSWAP_UINT64, B_FALSE),
+	DMU_OTN_UINT64_METADATA //  = DMU_OT(DMU_BSWAP_UINT64, B_TRUE),
+	DMU_OTN_ZAP_DATA        //  = DMU_OT(DMU_BSWAP_ZAP, B_FALSE),
+	DMU_OTN_ZAP_METADATA    // = DMU_OT(DMU_BSWAP_ZAP, B_TRUE)
+//} dmu_object_type_t;
+)
+
 // Cribbed from zfsimpl.h
 //
 // 	uint8_t dn_type;		/* dmu_object_type_t */
@@ -89,7 +246,7 @@ func (vdo *VdevOffset) Gang() bool {
 // 	};
 
 type DnodePhys struct {
-	Type               uint8              // dn type
+	Type               DmuObjectType      // dn type
 	IndirectBlockShift uint8              // ln2(indirect block size) -- indirect_block_size^2 = size of block?
 	IndirectionLevels  uint8              // 1=dn_blkptr->data blocks
 	BlockPointerLength uint8              // length of dn_blkptr
@@ -265,7 +422,7 @@ func (bp BlockPointer) String() string {
 // comments cribbed from /usr/src/sys/cddl/boot/zfs/zfssimpl.h
 type UberBlock struct {
 	Magic            uint64       // magic 0x00babl0c (oo-ba-bloc!)
-	Version          uint64       // SPA Version
+	Version          uint64       // Storage Spool Allocator (SPA) Version
 	TransactionGroup uint64       // transaction group of last sync
 	GuidSum          uint64       // sum of all vdev guids
 	Timestamp        uint64       // time of last sync
@@ -280,7 +437,7 @@ func (ub *UberBlock) String() string {
 		fmt.Sprintf("Version: %d, ", ub.Version) +
 		fmt.Sprintf("TrasnactionGroup: %d, ", ub.TransactionGroup) +
 		fmt.Sprintf("Timestamp: %s (%d)\n", time.Unix(int64(ub.Timestamp), 0), ub.Timestamp) +
-		fmt.Sprintf("GUID Sum: %x, ", ub.GuidSum) +
+		fmt.Sprintf("GUID Sum: %x (%d), ", ub.GuidSum, ub.GuidSum) +
 		fmt.Sprintf("SoftwareVersion: %d, ", ub.SoftwareVersion) +
 		fmt.Sprintf("Checkpoint Transaction: %x\n", ub.CheckpointTx) +
 		fmt.Sprintf("%s", ub.RootBP)
@@ -316,15 +473,18 @@ func (vdl *VdevLabel) UberBlocks() []UberBlock {
 	// FIXME: this is a magic number.  hard coded 4k uber block size.  this
 	// matches what i've observed but conflicts with the documentation.
 	ubs := uintptr(4096)
-	nrecords := uintptr((128 << 10) / ubs)
+	// nrecords := uintptr((128 << 10) / ubs)
+	nrecords := uintptr(128)
 
 	rc := []UberBlock{}
 	for i := uintptr(0); i < nrecords; i++ {
 		ub := (*UberBlock)(unsafe.Pointer(p + (i * ubs)))
 		if ub.Magic != 0xbab10c {
 			// invalid uber block
+			log.Printf("%d: invalid uber block magic %x", i, ub.Magic)
 			continue
 		}
+		log.Printf("%d: uber block magic %x", i, ub.Magic)
 		rc = append(rc, *ub)
 	}
 	return rc

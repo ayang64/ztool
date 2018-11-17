@@ -2,6 +2,7 @@ package zfs
 
 import (
 	"encoding/binary"
+	"github.com/pierrec/lz4"
 	"os"
 	"reflect"
 	"testing"
@@ -26,15 +27,15 @@ func TestSizeofs(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
 			if typ := reflect.TypeOf(test.Value); typ.Size() != test.ExpectedSize {
-				t.Fatalf("Size of %s is %d bytes, expected %d (%d bytes)",
-					typ.Name(), typ.Size(), test.ExpectedSize, test.ExpectedSize/8)
+				t.Fatalf("Size of %s is %d bytes; expected %d",
+					typ.Name(), typ.Size(), test.ExpectedSize)
 				t.FailNow()
 			}
 		})
 	}
 }
 
-func TestZfs(t *testing.T) {
+func fileReader(t *testing.T) *os.File {
 	testFilePath := func() string {
 		if rc := os.Getenv("ZFSDATA"); rc != "" {
 			return rc
@@ -42,20 +43,31 @@ func TestZfs(t *testing.T) {
 		return "../zbackup0"
 	}
 
-	r, err := os.Open(testFilePath())
-
+	rc, err := os.Open(testFilePath())
 	if err != nil {
 		t.Fatalf("could not open vdev: %v", err)
 		t.FailNow()
 	}
 
+	return rc
+}
+
+func TestFindUberBlocks(t *testing.T) {
+
+	r := fileReader(t)
+
 	defer r.Close()
 
 	vdl := [2]VdevLabel{}
 	binary.Read(r, binary.LittleEndian, &vdl)
+
 	for idx, v := range vdl {
-		t.Logf("********** HEADER %d **********", idx)
-		for idx, ub := range v.UberBlocks() {
+		t.Logf("********** LABEL %d **********", idx)
+
+		ubs := v.UberBlocks()
+
+		t.Logf("THERE ARE %d UBER BLOCKS", len(ubs))
+		for idx, ub := range ubs {
 			t.Logf("---------- UBER BLOCK %03d ----------", idx)
 
 			t.Logf("%s", &ub)
@@ -69,32 +81,62 @@ func TestZfs(t *testing.T) {
 		}
 	}
 
-	// read phy dnone from offsets.
+}
 
-	uberBlock, err := vdl[1].ActiveUberBlock()
+func TestFindMOS(t *testing.T) {
+	r := fileReader(t)
+
+	vdl := [2]VdevLabel{}
+	binary.Read(r, binary.LittleEndian, &vdl)
+
+	ub := vdl[1].UberBlocks()
+
+	t.Logf("%v", ub)
+
+	uberBlock, err := vdl[0].ActiveUberBlock()
 
 	if err != nil {
 		t.Fatal(err)
 		t.FailNow()
 	}
 
-	t.Logf("ACTIVE UBER BLOCK: %#v", uberBlock)
+	t.Logf("ACTIVE UBER BLOCK:\n%s", uberBlock)
 
-	for idx := range uberBlock.RootBP.Vdevs {
-		offset := uberBlock.RootBP.Vdevs[idx].Block()
-		t.Logf("%d", offset)
+	offset := uberBlock.RootBP.Vdevs[1].Block()
 
-		if _, err := r.Seek(int64(offset), 0); err != nil {
-			t.Logf("r.Seek(%d, 0) returned %v", offset, err)
-			t.FailNow()
-		}
+	kb := offset / 1024
+	mb := kb / 1024
+	gb := mb / 1024
 
-		// read a DnodePhys into memory
-		dn := DnodePhys{}
-		binary.Read(r, binary.LittleEndian, &dn)
+	t.Logf("OFFSET: %d (%dmb) (%dgb)", offset, mb, gb)
 
-		t.Logf("%#v", dn)
+	finfo, err := r.Stat()
 
-		t.Logf("compression type: %s", dn.Compress)
+	if err != nil {
+		t.Logf("stat failed: %v", err)
 	}
+
+	t.Logf("file size: %d", finfo.Size())
+	if finfo.Size() < int64(offset) {
+		t.Logf("attempting to go past EOF.")
+	}
+
+	if _, err := r.Seek(int64(offset), 0); err != nil {
+		t.Logf("r.Seek(%d, 0) returned %v", offset, err)
+		t.FailNow()
+	}
+
+	// read a DnodePhys into memory
+	dn := DnodePhys{}
+
+	lzr := lz4.NewReader(r)
+	if err := binary.Read(lzr, binary.LittleEndian, &dn); err != nil {
+		t.Logf("binary.Read() failed: %v", err)
+	}
+	// binary.Read(r, binary.LittleEndian, &dn)
+
+	t.Logf("------\n%#v", dn)
+
+	t.Logf("shift: %d", dn.IndirectBlockShift)
+	t.Logf("compression type: %s", dn.Compress)
 }
