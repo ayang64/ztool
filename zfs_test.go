@@ -3,11 +3,43 @@ package zfs
 import (
 	"encoding/binary"
 	"github.com/pierrec/lz4"
+	"log"
 	"os"
 	"reflect"
 	"testing"
 	"time"
 )
+
+func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+}
+func testFilePath() string {
+	// ZFSDATA overrides hostname.
+	if rc := os.Getenv("ZFSDATA"); rc != "" {
+		return rc
+	}
+	if n, _ := os.Hostname(); n == "jade.ayan.net" {
+		return "/obrovsky/recovery/zbackup0"
+	}
+	return "../zbackup0"
+}
+
+func TestSeek(t *testing.T) {
+	inf, err := os.Open(testFilePath())
+
+	if err != nil {
+		t.Fatalf("error: %v", err)
+		t.FailNow()
+	}
+
+	s, err := inf.Stat()
+	if err != nil {
+		t.Fatalf("error: %v", err)
+		t.FailNow()
+	}
+
+	t.Logf("s = %#v", s)
+}
 
 func TestSizeofs(t *testing.T) {
 	tests := []struct {
@@ -35,7 +67,7 @@ func TestSizeofs(t *testing.T) {
 	}
 }
 
-func fileReader(t *testing.T) *os.File {
+func fileReader(t *testing.T) (*os.File, error) {
 	testFilePath := func() string {
 		if rc := os.Getenv("ZFSDATA"); rc != "" {
 			return rc
@@ -43,18 +75,30 @@ func fileReader(t *testing.T) *os.File {
 		return "../zbackup0"
 	}
 
+	return os.Open(testFilePath())
+}
+
+func TestZfs(t *testing.T) {
+	t.Logf("--------------------------------------")
 	rc, err := os.Open(testFilePath())
 	if err != nil {
 		t.Fatalf("could not open vdev: %v", err)
 		t.FailNow()
 	}
-
-	return rc
+	rc = rc
 }
 
 func TestFindUberBlocks(t *testing.T) {
 
-	r := fileReader(t)
+	r := func() *os.File {
+		r, err := fileReader(t)
+
+		if err != nil {
+			t.Fatal(err)
+			t.FailNow()
+		}
+		return r
+	}()
 
 	defer r.Close()
 
@@ -84,7 +128,14 @@ func TestFindUberBlocks(t *testing.T) {
 }
 
 func TestFindMOS(t *testing.T) {
-	r := fileReader(t)
+	r := func() *os.File {
+		r, err := fileReader(t)
+		if err != nil {
+			t.Fatal(err)
+			t.FailNow()
+		}
+		return r
+	}()
 
 	vdl := [2]VdevLabel{}
 	binary.Read(r, binary.LittleEndian, &vdl)
@@ -94,6 +145,8 @@ func TestFindMOS(t *testing.T) {
 	t.Logf("%v", ub)
 
 	uberBlock, err := vdl[0].ActiveUberBlock()
+
+	t.Logf("uberBlock: %s", uberBlock)
 
 	if err != nil {
 		t.Fatal(err)

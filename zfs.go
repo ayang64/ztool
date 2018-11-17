@@ -1,30 +1,37 @@
 /*
-
 	map to beginning of directory hierarchy:
 
 	VdevLabel
 		-> RootBlockPointer
 			-> PhysMetaNote
-
-
 */
 
 package zfs
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
-	"time"
-	"unsafe"
 
-	_ "github.com/pierrec/lz4"
+	"github.com/pierrec/lz4"
 )
 
 type VdevOffset struct {
 	VDEV   uint32 // id of vdev
 	Size   uint32 // first byte is GRID (whatever that means) and remaning 3 bytes are ASIZE (allocated size)
 	Offset uint64 // first bit is G (whatever that is) and the remainder is the offset into the vdev
+}
+
+func (vdo *VdevOffset) ReadDnode(r io.Reader) (*DnodePhys, error) {
+	dn := DnodePhys{}
+
+	if err := binary.Read(r, binary.LittleEndian, &dn); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("dn = %#v", dn)
+	return &dn, nil
 }
 
 func (vdo *VdevOffset) Asize() int {
@@ -49,7 +56,7 @@ func (vdo *VdevOffset) Gang() bool {
 	// to this gang block is returned to the requester, giving the requester the
 	// perception of a single block.
 	//
-	// Gang blocks are identified by the “G” bit.
+	// Gang blocks are identified by the G bit
 
 	// we do some simple bit shifting to return a bool representing
 	// the most significant bit in our offset.
@@ -267,6 +274,21 @@ type DnodePhys struct {
 
 type ZfsCompressionType uint8
 
+func (zct ZfsCompressionType) NewReader(r io.ReadSeeker) io.Reader {
+	switch zct.String() {
+	case "ZIO_COMPRESS_INHERIT":
+		return r
+	case "ZIO_COMPRESS_ON":
+		return r
+	case "ZIO_COMPRESS_LZ4":
+		return lz4.NewReader(r)
+	case "ZIO_COMPRESS_ZLE":
+		return r
+	default:
+		return r
+	}
+}
+
 func (zct ZfsCompressionType) String() string {
 	vals := []string{
 		"ZIO_COMPRESS_INHERIT",
@@ -288,10 +310,10 @@ func (zct ZfsCompressionType) String() string {
 		"ZIO_COMPRESS_FUNCTIONS",
 	}
 	if zct < 0 {
-		return "*ERROR-BELOW_RANGE*"
+		return fmt.Sprintf("*ERROR-%03d-BELOW-RANGE*", zct)
 	}
 	if int(zct) > len(vals)-1 {
-		return "*ERROR-ABOVE-RANGE*"
+		return fmt.Sprintf("*ERROR-%03d-ABOVE-RANGE*", zct)
 	}
 	return vals[zct]
 }
@@ -333,12 +355,11 @@ func (bpp BlockPointerProps) Psize() uint8 {
 	return uint8((bpp >> 8) & 0xff)
 }
 
-func (bpp BlockPointerProps) Compression() uint8 {
-	return uint8(bpp>>32) & 0x7f
+func (bpp BlockPointerProps) Compression() ZfsCompressionType {
+	return ZfsCompressionType(uint8(bpp>>32) & 0x7f)
 }
 func (bpp BlockPointerProps) CompressionString() string {
-	cmptyp := ZfsCompressionType(bpp.Compression())
-	return cmptyp.String()
+	return bpp.Compression().String()
 }
 
 func (bpp BlockPointerProps) Type() uint8 {
@@ -381,32 +402,6 @@ func (bpp BlockPointerProps) Endian() string {
 	return []string{"BigEndian", "LittleEndian"}[(bpp >> 63)]
 }
 
-// SPA data represented as a adata virtual addresses (DVA) - 128bytes
-type BlockPointer struct {
-	Vdevs                 [3]VdevOffset     //  48 bytes
-	Props                 BlockPointerProps //   8 bytes Props
-	Padding               [2]uint64         //	16 bytes padding
-	BirthTransactionGroup uint64            //   8 bytes transaction group for which this block pointer was allocated.
-	Birth                 uint64            //   8 bytes transaction group for which this block pointer was allocated.
-	FillCount             uint64            //   8 bytes number of non-zero block pointers under this block pointer
-	ChecksumList          [4]uint64         //  32 bytes
-}
-
-func (bp BlockPointer) String() string {
-	return fmt.Sprintf("BirthTransactionGroup %d", bp.BirthTransactionGroup) +
-		fmt.Sprintf("Birth: %d", bp.Birth) +
-		fmt.Sprintf("Fill Count: %d", bp.FillCount) +
-		fmt.Sprintf("Checksum: %d\n", bp.ChecksumList) +
-		fmt.Sprintf("  Props = %d (%b)\n", bp.Props, bp.Props) +
-		fmt.Sprintf("  Props.Endian() = %s\n", bp.Props.Endian()) +
-		fmt.Sprintf("  Props.Type() = %d\n", bp.Props.Type()) +
-		fmt.Sprintf("  Props.Checksum() = %d (%s)\n", bp.Props.Checksum(), bp.Props.ChecksumString()) +
-		fmt.Sprintf("  Props.Lsize() = %d\n", bp.Props.Lsize()) +
-		fmt.Sprintf("  Props.Psize() = %d\n", bp.Props.Psize()) +
-		fmt.Sprintf("  Props.Embedded() = %v\n", bp.Props.Embedded()) +
-		fmt.Sprintf("  Props.Compression() = %d (%s)\n", bp.Props.Compression(), bp.Props.CompressionString())
-}
-
 // struct uberblock {
 // 	/*   8 */	uint64_t	ub_magic;			/* UBERBLOCK_MAGIC		*/
 // 	/*   8 */ uint64_t	ub_version;		/* SPA_VERSION			*/
@@ -417,78 +412,6 @@ func (bp BlockPointer) String() string {
 // };
 //
 // 168 bytes
-
-// UberBlock -- 1024bits - 128bytes
-// comments cribbed from /usr/src/sys/cddl/boot/zfs/zfssimpl.h
-type UberBlock struct {
-	Magic            uint64       // magic 0x00babl0c (oo-ba-bloc!)
-	Version          uint64       // Storage Spool Allocator (SPA) Version
-	TransactionGroup uint64       // transaction group of last sync
-	GuidSum          uint64       // sum of all vdev guids
-	Timestamp        uint64       // time of last sync
-	RootBP           BlockPointer // mos objset_phys_t
-	SoftwareVersion  uint64       // FreeBSD is usually 5000
-	PAD              [3]uint64    // padding
-	CheckpointTx     uint64       // Checkpoint Transaction
-}
-
-func (ub *UberBlock) String() string {
-	return fmt.Sprintf("\nMagic: %08x (valid: %v), ", ub.Magic, ub.Magic == 0xbab10c) +
-		fmt.Sprintf("Version: %d, ", ub.Version) +
-		fmt.Sprintf("TrasnactionGroup: %d, ", ub.TransactionGroup) +
-		fmt.Sprintf("Timestamp: %s (%d)\n", time.Unix(int64(ub.Timestamp), 0), ub.Timestamp) +
-		fmt.Sprintf("GUID Sum: %x (%d), ", ub.GuidSum, ub.GuidSum) +
-		fmt.Sprintf("SoftwareVersion: %d, ", ub.SoftwareVersion) +
-		fmt.Sprintf("Checkpoint Transaction: %x\n", ub.CheckpointTx) +
-		fmt.Sprintf("%s", ub.RootBP)
-}
-
-type VdevLabel struct {
-	BlankSpace      [8 << 10]byte   // 8k blank to accommodate os data
-	BootBlockHeader [8 << 10]byte   // 8k reserved blank space
-	NVP             [112 << 10]byte // XDR encoded  name value pairs
-	UberBlockBuf    [128 << 10]byte // uber block array
-}
-
-func (vdl *VdevLabel) ActiveUberBlock() (*UberBlock, error) {
-	ubs := vdl.UberBlocks()
-
-	u := UberBlock{Timestamp: 0}
-	// find uber block with latest timestamp
-	for i := range ubs {
-		if ubs[i].Timestamp > u.Timestamp {
-			u = ubs[i]
-		}
-	}
-
-	if u.Timestamp == 0 {
-		return nil, fmt.Errorf("could not find a valid uberblock")
-	}
-
-	return &u, nil
-}
-
-func (vdl *VdevLabel) UberBlocks() []UberBlock {
-	p := uintptr(unsafe.Pointer(&vdl.UberBlockBuf))
-	// FIXME: this is a magic number.  hard coded 4k uber block size.  this
-	// matches what i've observed but conflicts with the documentation.
-	ubs := uintptr(4096)
-	// nrecords := uintptr((128 << 10) / ubs)
-	nrecords := uintptr(128)
-
-	rc := []UberBlock{}
-	for i := uintptr(0); i < nrecords; i++ {
-		ub := (*UberBlock)(unsafe.Pointer(p + (i * ubs)))
-		if ub.Magic != 0xbab10c {
-			// invalid uber block
-			log.Printf("%d: invalid uber block magic %x", i, ub.Magic)
-			continue
-		}
-		log.Printf("%d: uber block magic %x", i, ub.Magic)
-		rc = append(rc, *ub)
-	}
-	return rc
-}
 
 type ZfsVdev struct {
 	Back io.ReadSeeker
