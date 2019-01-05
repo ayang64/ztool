@@ -62,7 +62,55 @@ func TestNvlist(t *testing.T) {
 		t.FailNow()
 	}
 
-	t.Logf("header = %#v", list)
+	t.Logf("list = %#v", list)
+
+	// read first pair
+
+	// xdr data is encoded in Big Endian
+	for {
+		pair := Pair{}
+		if err := binary.Read(br, binary.BigEndian, &pair); err != nil {
+			t.Fatal(err)
+			t.FailNow()
+		}
+
+		t.Logf("pair = %#v", pair)
+
+		// read namesize amount of data
+		namebytes := make([]byte, pair.NameSize)
+		if err := binary.Read(br, binary.BigEndian, namebytes); err != nil {
+			t.Fatal(err)
+			t.FailNow()
+		}
+
+		t.Logf("name = %s (%#v)", string(namebytes), namebytes)
+
+		// read padding
+		pad := make([]byte, 4-(pair.NameSize%4))
+		t.Logf("reading %d pad bytes.", 4-(pair.NameSize%4))
+		if err := binary.Read(br, binary.BigEndian, pad); err != nil {
+			t.Fatal(err)
+			t.FailNow()
+		}
+
+		// read type
+		typ := Type(0)
+		if err := binary.Read(br, binary.BigEndian, &typ); err != nil {
+			t.Fatal(err)
+			t.FailNow()
+		}
+
+		asize := int32(0)
+		if err := binary.Read(br, binary.BigEndian, &asize); err != nil {
+			t.Fatal(err)
+			t.FailNow()
+		}
+
+		t.Logf("array size: %d", asize)
+
+		t.Logf("type = %s", typ)
+
+	}
 
 	chunk := func(stride int, bytes []byte) [][]byte {
 		rc := [][]byte{}
