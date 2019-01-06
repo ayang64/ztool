@@ -101,7 +101,6 @@ func (s *Scanner) Bytes() []byte {
 func (s *Scanner) ValueString() string {
 	switch v := s.Value().(type) {
 	case uint64:
-		log.Printf("v = %d", v)
 		return fmt.Sprintf("%d", v)
 	case string:
 		return v
@@ -208,7 +207,6 @@ func (s *Scanner) Next() bool {
 
 	s.fieldNumElements = int(nelements)
 
-	log.Printf("about to read from %#v", record)
 	value, err := s.ReadValue(br, s.fieldType)
 
 	if err != nil {
@@ -255,17 +253,11 @@ func NewScanner(r io.Reader) (rc *Scanner) {
 		return binary.LittleEndian
 	}()
 
-	log.Printf("HEADER: %#v", rc.header)
-	log.Printf("ENDIAN: %s", rc.header.Endian)
-	log.Printf("ENCODING: %s", rc.header.Encoding)
-
 	// if err := binary.Read(r, rc.byteOrder, &rc.list); err != nil {
 	if err := binary.Read(r, rc.byteOrder, &rc.list); err != nil {
 		rc.err = err
 		return
 	}
-
-	log.Printf("LIST: %#v", rc.list)
 
 	return
 }
@@ -382,7 +374,7 @@ func (s *Scanner) ReadValue(r io.Reader, t Type) (interface{}, error) {
 		return s.ReadSub(r)
 
 	case NVListArray:
-		rc := make([]map[string]interface{}, s.NumElements())
+		rc := make([]map[string]interface{}, 0, s.NumElements())
 		for i := 0; i < s.NumElements(); i++ {
 			v, err := s.ReadSub(r)
 
@@ -411,16 +403,10 @@ func (s *Scanner) ReadSub(r io.Reader) (map[string]interface{}, error) {
 		return nil, err
 	}
 	for scn.Next() {
-		log.Printf("name: %s, value type: %s", scn.Name(), scn.Type())
 		rc[scn.Name()] = scn.Value()
-		log.Printf("  NAME: %s", scn.Name())
-		log.Printf("  TYPE: %s", scn.Type())
 	}
 
 	if err := scn.Error(); err != nil {
-		log.Printf("errored field: %s (%d)", scn.Name(), scn.Type())
-		log.Printf("errored type: %s", scn.Type())
-		log.Printf("errored num elements: %d", scn.NumElements())
 		return nil, err
 	}
 
@@ -434,18 +420,11 @@ func ReadFull(r io.Reader) (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	log.Printf("scn: %#v", scn)
-
 	for scn.Next() {
-		log.Printf("name: %s, value type: %s", scn.Name(), scn.Type())
 		rc[scn.Name()] = scn.Value()
-		log.Printf("  NAME: %s", scn.Name())
 	}
 
 	if err := scn.Error(); err != nil {
-		log.Printf("errored field: %s", scn.Name())
-		log.Printf("errored type: %s", scn.Type())
-		log.Printf("errored num elements: %d", scn.NumElements())
 		return nil, err
 	}
 

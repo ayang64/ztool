@@ -3,6 +3,7 @@ package nvlist
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -210,4 +211,9 @@ func TestLooper(t *testing.T) {
 	m, err := ReadFull(br)
 
 	t.Logf("m = %#v", m)
+
+	o, err := json.MarshalIndent(m, "", "  ")
+
+	t.Logf("%s", string(o))
+
 }
