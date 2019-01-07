@@ -1,7 +1,8 @@
-package zfs
+package zfs_test
 
 import (
 	"encoding/binary"
+	"github.com/ayang64/zfstool/zfs"
 	"github.com/pierrec/lz4"
 	"log"
 	"os"
@@ -14,14 +15,16 @@ func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 }
 func testFilePath() string {
-	// ZFSDATA overrides hostname.
-	if rc := os.Getenv("ZFSDATA"); rc != "" {
-		return rc
+	orStr := func(strs ...string) string {
+		for _, s := range strs {
+			if s != "" {
+				return s
+			}
+		}
+
+		return ""
 	}
-	if n, _ := os.Hostname(); n == "jade.ayan.net" {
-		return "/obrovsky/recovery/zbackup0"
-	}
-	return "../zbackup0"
+	return orStr(os.Getenv("ZFSDATA"), "/obrovsky/recovery/zbackup0")
 }
 
 func TestSeek(t *testing.T) {
@@ -47,11 +50,11 @@ func TestSizeofs(t *testing.T) {
 		Value        interface{}
 		ExpectedSize uintptr
 	}{
-		{Name: "BlockPointer", Value: BlockPointer{}, ExpectedSize: 128},
-		{Name: "DnodePhys", Value: DnodePhys{}, ExpectedSize: 512},
-		{Name: "UberBlock", Value: UberBlock{}, ExpectedSize: 208},
-		{Name: "VdevLabel", Value: VdevLabel{}, ExpectedSize: 262144},
-		{Name: "VdevOffset", Value: VdevOffset{}, ExpectedSize: 16},
+		{Name: "BlockPointer", Value: zfs.BlockPointer{}, ExpectedSize: 128},
+		{Name: "DnodePhys", Value: zfs.DnodePhys{}, ExpectedSize: 512},
+		{Name: "UberBlock", Value: zfs.UberBlock{}, ExpectedSize: 208},
+		{Name: "VdevLabel", Value: zfs.VdevLabel{}, ExpectedSize: 262144},
+		{Name: "VdevOffset", Value: zfs.VdevOffset{}, ExpectedSize: 16},
 	}
 
 	t.Parallel()
@@ -68,13 +71,6 @@ func TestSizeofs(t *testing.T) {
 }
 
 func fileReader(t *testing.T) (*os.File, error) {
-	testFilePath := func() string {
-		if rc := os.Getenv("ZFSDATA"); rc != "" {
-			return rc
-		}
-		return "../zbackup0"
-	}
-
 	return os.Open(testFilePath())
 }
 
@@ -102,7 +98,7 @@ func TestFindUberBlocks(t *testing.T) {
 
 	defer r.Close()
 
-	vdl := [2]VdevLabel{}
+	vdl := [2]zfs.VdevLabel{}
 	binary.Read(r, binary.LittleEndian, &vdl)
 
 	for idx, v := range vdl {
@@ -137,7 +133,7 @@ func TestFindMOS(t *testing.T) {
 		return r
 	}()
 
-	vdl := [2]VdevLabel{}
+	vdl := [2]zfs.VdevLabel{}
 	binary.Read(r, binary.LittleEndian, &vdl)
 
 	ub := vdl[1].UberBlocks()
@@ -180,7 +176,7 @@ func TestFindMOS(t *testing.T) {
 	}
 
 	// read a DnodePhys into memory
-	dn := DnodePhys{}
+	dn := zfs.DnodePhys{}
 
 	lzr := lz4.NewReader(r)
 	if err := binary.Read(lzr, binary.LittleEndian, &dn); err != nil {
