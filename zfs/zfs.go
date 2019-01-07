@@ -42,7 +42,7 @@ func (vdo *VdevOffset) Block() uint64 {
 	// ZFS talks about data in terms of 512byte blocks. the actual location is
 	// 4mb + (512 * offset) the shift gets rid of the G bit which is stored in
 	// the high order bit of vdo.Offset.
-	return (vdo.Offset << 9) + 0x400000
+	return (vdo.Offset << 12) + 0x400000
 }
 
 func (vdo *VdevOffset) Gang() bool {
