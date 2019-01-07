@@ -14,7 +14,7 @@ func (l List) Find(target string) (interface{}, bool) {
 		}
 	}
 
-	// search current lvel for value
+	// search current level for value
 	for k := range l {
 		if k != target {
 			continue

@@ -1,4 +1,4 @@
-module github.com/ayang64/zfstool
+module github.com/ayang64/ztool
 
 require (
 	github.com/fzipp/gocyclo v0.0.0-20150627053110-6acd4345c835 // indirect

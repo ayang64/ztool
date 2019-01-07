@@ -1,10 +1,13 @@
 package zfs
 
-import "io"
+import (
+	"github.com/ayang64/ztool/zfs/internal/nvlist"
+	"io"
+)
 
 type Filesystem struct {
 	rs     io.ReadSeeker
-	nvlist map[string]interface{}
+	nvlist nvlist.List
 	ub     *UberBlock
 }
 

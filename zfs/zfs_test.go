@@ -2,7 +2,7 @@ package zfs_test
 
 import (
 	"encoding/binary"
-	"github.com/ayang64/zfstool/zfs"
+	"github.com/ayang64/ztool/zfs"
 	"github.com/pierrec/lz4"
 	"log"
 	"os"
