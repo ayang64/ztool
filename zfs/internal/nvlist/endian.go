@@ -5,14 +5,25 @@ import (
 	"fmt"
 )
 
+// Endian encodes an byte ordervalue in a nvlist header.
 type Endian int8
 
 const (
+	// LittleEndian denotes a little-endian byte order.
 	LittleEndian = Endian(iota) // 0
-	BigEndian                   // 1
+	// BigEndian denotes a big-endian byte order.
+	BigEndian // 1
 )
 
+// ByteOrder returns a binary.ByteOrder that corresponds with the Endian value.
 func (e Endian) ByteOrder() binary.ByteOrder {
+	switch e {
+	case BigEndian:
+		return binary.BigEndian
+	case LittleEndian:
+		return binary.LittleEndian
+	}
+	// unknown byte order value
 	return nil
 }
 

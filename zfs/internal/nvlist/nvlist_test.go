@@ -189,30 +189,19 @@ func TestLooper(t *testing.T) {
 	// bytes.Reader
 	br := bytes.NewReader(nvlist)
 
-	/*
-		scanner := NewScanner(br)
+	m, err := Read(br)
 
-		t.Logf("s: %#v", scanner)
-
-		for scanner.Next() {
-			t.Logf("s: %s (%s), %d, %d -> %q", scanner.Name(), scanner.Type(), scanner.NumElements(), scanner.FieldSize(), scanner.ValueString())
-
-		}
-
-		if err := scanner.Error(); err != nil {
-			t.Logf("errored field size: %d", scanner.FieldSize())
-			t.Logf("     errored bytes: %#v", scanner.Bytes())
-			t.Logf("      errored name: %s", scanner.Name())
-			t.Fatal(err)
-		}
-
-	*/
-
-	m, err := ReadFull(br)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	t.Logf("m = %#v", m)
 
 	o, err := json.MarshalIndent(m, "", "  ")
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	t.Logf("%s", string(o))
 

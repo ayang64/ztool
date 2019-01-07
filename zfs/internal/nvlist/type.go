@@ -11,6 +11,7 @@ package nvlist
 // 	/* aligned array of data for value */
 // } nvpair_t;
 
+// Type encodes the data type of a nvlist pair's value.
 type Type int32
 
 // nvlist data types
@@ -45,11 +46,12 @@ const (
 	Uint8Array
 )
 
+// Size returns the encoded size of a type. FIXME: This entire function may be unnesesary.
 func (t Type) Size() int32 {
 	sizes := map[Type]int32{
-		DontCare:     -1,
+		DontCare:     -1, // We're not sure what DontCare types are and when they're used.
 		Unknown:      -1,
-		Boolean:      0, // unknown size
+		Boolean:      0, // Booleans can take up 0 space.  The existence of a key denotes a true value if the type is boolean.
 		Byte:         1,
 		Int16:        2,
 		Uint16:       2,
@@ -77,71 +79,47 @@ func (t Type) Size() int32 {
 		Uint8Array:   -1,
 	}
 
-	size, exists := sizes[t]
-
-	if exists == false {
-		return -1
+	if size, found := sizes[t]; found {
+		return size
 	}
 
-	return size
+	return -1
 }
 
 func (t Type) String() string {
-	switch t {
-	case Unknown:
-		return "*UNKKNOWN-TYPE0*"
-	case Boolean:
-		return "Boolean"
-	case Byte:
-		return "Byte"
-	case Int16:
-		return "Int16"
-	case Uint16:
-		return "Uint16"
-	case Int32:
-		return "Int32"
-	case Uint32:
-		return "Uint32"
-	case Int64:
-		return "Int64"
-	case Uint64:
-		return "Uint64"
-	case String:
-		return "String"
-	case ByteArray:
-		return "ByteArray"
-	case Int16Array:
-		return "Int16Array"
-	case Uint16Array:
-		return "Uint16Array"
-	case Int32Array:
-		return "Int32Array"
-	case Uint32Array:
-		return "Uint32Array"
-	case Int64Array:
-		return "Int64Array"
-	case Uint64Array:
-		return "Uint64Array"
-	case StringArray:
-		return "StringArray"
-	case HRTime:
-		return "HRTime"
-	case NVList:
-		return "NVList"
-	case NVListArray:
-		return "NVListArray"
-	case BooleanValue:
-		return "BooleanValue"
-	case Int8:
-		return "Int8"
-	case Uint8:
-		return "Uint8"
-	case BooleanArray:
-		return "BooleanArray"
-	case Int8Array:
-		return "Int8Array"
-	case Uint8Array:
-		return "Uint8Array"
+	m := map[Type]string{
+		Unknown:      "*UNKKNOWN-TYPE0*",
+		Boolean:      "Boolean",
+		Byte:         "Byte",
+		Int16:        "Int16",
+		Uint16:       "Uint16",
+		Int32:        "Int32",
+		Uint32:       "Uint32",
+		Int64:        "Int64",
+		Uint64:       "Uint64",
+		String:       "String",
+		ByteArray:    "ByteArray",
+		Int16Array:   "Int16Array",
+		Uint16Array:  "Uint16Array",
+		Int32Array:   "Int32Array",
+		Uint32Array:  "Uint32Array",
+		Int64Array:   "Int64Array",
+		Uint64Array:  "Uint64Array",
+		StringArray:  "StringArray",
+		HRTime:       "HRTime",
+		NVList:       "NVList",
+		NVListArray:  "NVListArray",
+		BooleanValue: "BooleanValue",
+		Int8:         "Int8",
+		Uint8:        "Uint8",
+		BooleanArray: "BooleanArray",
+		Int8Array:    "Int8Array",
+		Uint8Array:   "Uint8Array",
 	}
+
+	if str, found := m[t]; found {
+		return str
+	}
+
 	return "*UNKNOWN-TYPE*"
 }
