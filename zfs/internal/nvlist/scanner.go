@@ -53,7 +53,7 @@ func NewScanner(r io.Reader) (rc *Scanner) {
 }
 
 func (s *Scanner) ReadValue(r io.Reader, t Type) (interface{}, error) {
-	f := ReadValueFunc(r, t)
+	f := s.readValueFunc(r, t)
 
 	if f == nil {
 		return nil, fmt.Errorf("no conversion function for type %q", t)
@@ -62,7 +62,7 @@ func (s *Scanner) ReadValue(r io.Reader, t Type) (interface{}, error) {
 	return f()
 }
 
-func (s *Scanner) ReadValueFunc(r io.Reader, t Type) func() (interface{}, error) {
+func (s *Scanner) readValueFunc(r io.Reader, t Type) func() (interface{}, error) {
 	m := map[Type]func() (interface{}, error){
 		DontCare: nil,
 		Unknown:  nil,
