@@ -8,11 +8,14 @@ import (
 	"log"
 )
 
+// Scanner provides a convenient way to read an XDR encode nvlist from a ZFS
+// volume.  The Scanner type encapsulates all of the context related to
+// iterating over nvlist entries.
 type Scanner struct {
-	byteOrder        binary.ByteOrder
-	r                io.Reader
-	header           Header
-	list             List
+	r                io.Reader        // io.Reader for reading scanned data.
+	byteOrder        binary.ByteOrder // Byte order of the values being read.
+	header           Header           // Non-repeating portion of nvlist that contains the encoding type and byte order of the data in the list being scanned.
+	list             List             // Non-repeating data encoding the nvlist version and any flags.
 	pair             Pair
 	fieldName        string
 	fieldType        Type
@@ -50,76 +53,85 @@ func NewScanner(r io.Reader) (rc *Scanner) {
 }
 
 func (s *Scanner) ReadValue(r io.Reader, t Type) (interface{}, error) {
-	switch t {
-	case DontCare:
-	case Unknown:
-	case Boolean:
-		return true, nil
+	f := ReadValueFunc(r, t)
 
-	case Byte:
-	case Int16:
-	case Uint16:
-	case Int32:
-	case Uint32:
-	case Int64:
-	case Uint64:
-		var rc uint64
-		if err := binary.Read(r, s.byteOrder, &rc); err != nil {
-			return nil, err
-		}
-		return rc, nil
-
-	case String:
-		var length int32
-		if err := binary.Read(r, s.byteOrder, &length); err != nil {
-			return "", err
-		}
-
-		align4 := func(i int32) int32 {
-			return (i + 3) & ^3
-		}
-
-		str := make([]byte, align4(length))
-
-		if err := binary.Read(r, s.byteOrder, str); err != nil {
-			return "", err
-		}
-
-		return string(str[:length]), nil
-
-	case ByteArray:
-	case Int16Array:
-	case Uint16Array:
-	case Int32Array:
-	case Uint32Array:
-	case Int64Array:
-	case Uint64Array:
-	case StringArray:
-	case HRTime:
-	case NVList:
-		return s.ReadSub(r)
-
-	case NVListArray:
-		rc := make([]map[string]interface{}, 0, s.NumElements())
-		for i := 0; i < s.NumElements(); i++ {
-			v, err := s.ReadSub(r)
-
-			if err != nil {
-				log.Fatal(err)
-			}
-			rc = append(rc, v)
-		}
-		return rc, nil
-
-	case BooleanValue:
-	case Int8:
-	case Uint8:
-	case BooleanArray:
-	case Int8Array:
-	case Uint8Array:
+	if f == nil {
+		return nil, fmt.Errorf("no conversion function for type %q", t)
 	}
 
-	return nil, fmt.Errorf("unknown type %q", t)
+	return f()
+}
+
+func (s *Scanner) ReadValueFunc(r io.Reader, t Type) func() (interface{}, error) {
+	m := map[Type]func() (interface{}, error){
+		DontCare: nil,
+		Unknown:  nil,
+		Boolean:  func() (interface{}, error) { return true, nil },
+		Byte:     nil,
+		Int16:    nil,
+		Uint16:   nil,
+		Int32:    nil,
+		Uint32:   nil,
+		Int64:    nil,
+		Uint64: func() (interface{}, error) {
+			var rc uint64
+			if err := binary.Read(r, s.byteOrder, &rc); err != nil {
+				return nil, err
+			}
+			return rc, nil
+		},
+		String: func() (interface{}, error) {
+			var length int32
+			if err := binary.Read(r, s.byteOrder, &length); err != nil {
+				return "", err
+			}
+
+			align4 := func(i int32) int32 {
+				return (i + 3) & ^3
+			}
+
+			str := make([]byte, align4(length))
+
+			if err := binary.Read(r, s.byteOrder, str); err != nil {
+				return "", err
+			}
+			return string(str[:length]), nil
+		},
+		ByteArray:   nil,
+		Int16Array:  nil,
+		Uint16Array: nil,
+		Int32Array:  nil,
+		Uint32Array: nil,
+		Int64Array:  nil,
+		Uint64Array: nil,
+		StringArray: nil,
+		HRTime:      nil,
+		NVList:      func() (interface{}, error) { return s.ReadSub(r) },
+		NVListArray: func() (interface{}, error) {
+			rc := make([]map[string]interface{}, 0, s.NumElements())
+			for i := 0; i < s.NumElements(); i++ {
+				v, err := s.ReadSub(r)
+
+				if err != nil {
+					log.Fatal(err)
+				}
+				rc = append(rc, v)
+			}
+			return rc, nil
+		},
+		BooleanValue: nil,
+		Int8:         nil,
+		Uint8:        nil,
+		BooleanArray: nil,
+		Int8Array:    nil,
+		Uint8Array:   nil,
+	}
+
+	if f, found := m[t]; found {
+		return f
+	}
+
+	return nil
 }
 
 func (s *Scanner) ReadSub(r io.Reader) (map[string]interface{}, error) {
