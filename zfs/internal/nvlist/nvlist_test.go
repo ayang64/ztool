@@ -66,6 +66,11 @@ func TestLooper(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	t.Run("ListFind", func(t *testing.T) {
+		asize, found := m.Find("ashift")
+		t.Logf("asize: %v, %v", asize, found)
+	})
+
 	o, err := json.MarshalIndent(m, "", "  ")
 
 	if err != nil {

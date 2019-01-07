@@ -15,7 +15,7 @@ type Scanner struct {
 	r                io.Reader        // io.Reader for reading scanned data.
 	byteOrder        binary.ByteOrder // Byte order of the values being read.
 	header           Header           // Non-repeating portion of nvlist that contains the encoding type and byte order of the data in the list being scanned.
-	list             List             // Non-repeating data encoding the nvlist version and any flags.
+	list             ListMeta         // Non-repeating data encoding the nvlist version and any flags.
 	pair             Pair
 	fieldName        string
 	fieldType        Type
@@ -108,7 +108,7 @@ func (s *Scanner) readValueFunc(r io.Reader, t Type) func() (interface{}, error)
 		HRTime:      nil,
 		NVList:      func() (interface{}, error) { return s.ReadSub(r) },
 		NVListArray: func() (interface{}, error) {
-			rc := make([]map[string]interface{}, 0, s.NumElements())
+			rc := make([]List, 0, s.NumElements())
 			for i := 0; i < s.NumElements(); i++ {
 				v, err := s.ReadSub(r)
 
@@ -134,8 +134,8 @@ func (s *Scanner) readValueFunc(r io.Reader, t Type) func() (interface{}, error)
 	return nil
 }
 
-func (s *Scanner) ReadSub(r io.Reader) (map[string]interface{}, error) {
-	rc := make(map[string]interface{})
+func (s *Scanner) ReadSub(r io.Reader) (List, error) {
+	rc := make(List)
 	scn := s.NewSubScanner(r)
 	if err := scn.Error(); err != nil {
 		return nil, err
