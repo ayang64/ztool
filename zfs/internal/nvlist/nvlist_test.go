@@ -2,80 +2,104 @@ package nvlist_test
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/json"
-	"github.com/ayang64/ztool/zfs/internal/nvlist"
 	"os"
 	"testing"
+
+	"github.com/ayang64/ztool/zfs/internal/nvlist"
 )
 
-func strOr(s ...string) string {
-	for i := range s {
-		if s[i] != "" {
-			return s[i]
-		}
-	}
-	return ""
-}
-
 func BenchmarkRead(b *testing.B) {
-
-	path := strOr(os.Getenv("ZFSFILE"), "/obrovsky/recovery/zbackup0")
-	if path == "" {
-		b.Fatalf("path must be set.")
-	}
-	fh, err := os.Open(path)
-	if err != nil {
-		b.Fatalf("could not open %q; %v", path, err)
-	}
-	fh.Seek(0x4000, 0)
-	nvl := make([]byte, 0x1c000)
-	if err := binary.Read(fh, binary.LittleEndian, nvl); err != nil {
-		b.Fatal(err)
+	benches := []struct {
+		Name   string
+		Path   string
+		Offset int64
+		Size   int
+	}{
+		{Name: "", Path: "../../../test-data/uncompressed-simple.image", Offset: 0x4000, Size: 0x1c00},
 	}
 
-	br := bytes.NewReader(nvl)
-	for i := 0; i < b.N; i++ {
-		nvlist.Read(br)
-		br.Reset(nvl)
+	for _, bench := range benches {
+		b.Run(bench.Name, func(b *testing.B) {
+			fh, err := os.Open(bench.Path)
+
+			if err != nil {
+				b.Fatal(err)
+			}
+			defer fh.Close()
+			fh.Seek(bench.Offset, 0)
+			nvl := make([]byte, bench.Size)
+
+			fh.Read(nvl)
+			br := bytes.NewReader(nvl)
+
+			for i := 0; i < b.N; i++ {
+				nvlist.Read(br)
+				br.Reset(nvl)
+			}
+		})
 	}
 }
 
 func TestLooper(t *testing.T) {
-	path := strOr(os.Getenv("ZFSFILE"), "/obrovsky/recovery/zbackup0")
-	if path == "" {
-		t.Fatalf("path must be set.")
-	}
-	fh, err := os.Open(path)
-	if err != nil {
-		t.Fatalf("could not open %q; %v", path, err)
-	}
-	fh.Seek(0x4000, 0)
-	nvl := make([]byte, 0x1c000)
-	if err := binary.Read(fh, binary.LittleEndian, nvl); err != nil {
-		t.Fatal(err)
-	}
-
-	// now that nvlist is a byte slice, we can make it a
-	// bytes.Reader
-	br := bytes.NewReader(nvl)
-
-	m, err := nvlist.Read(br)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Run("ListFind", func(t *testing.T) {
-		asize, found := m.Find("ashift")
-		t.Logf("asize: %v, %v", asize, found)
-	})
-
-	o, err := json.MarshalIndent(m, "", "  ")
-
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		Name   string
+		Path   string
+		Offset int64
+		Size   int
+		Opts   []func() func(*nvlist.Scanner) error
+	}{
+		{
+			Name:   "",
+			Path:   "../../../test-data/uncompressed-simple.image",
+			Offset: 0x4000,
+			Size:   0x1c00,
+			Opts:   []func() func(*nvlist.Scanner) error{},
+		},
+		{
+			Name:   "",
+			Path:   "../../../test-data/zpool.cache",
+			Offset: 0x0,
+			Size:   0x184c,
+			Opts:   []func() func(*nvlist.Scanner) error{nvlist.WithoutHeader},
+		},
 	}
 
-	t.Logf("\n%s", string(o))
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			fh, err := os.Open(test.Path)
+			if err != nil {
+				t.Fatalf("could not open %q; %v", test.Path, err)
+			}
+			defer fh.Close()
+
+			fh.Seek(test.Offset, 0)
+			nvl := make([]byte, test.Size)
+
+			if _, err := fh.Read(nvl); err != nil {
+				t.Fatal(err)
+			}
+
+			br := bytes.NewReader(nvl)
+
+			m, err := nvlist.Read(br)
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			t.Run("ListFind", func(t *testing.T) {
+				asize, found := m.Find("ashift")
+				t.Logf("asize: %v, %v", asize, found)
+			})
+
+			o, err := json.MarshalIndent(m, "", "  ")
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			t.Logf("\n%s", string(o))
+		})
+	}
 }

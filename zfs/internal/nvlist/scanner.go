@@ -12,7 +12,8 @@ import (
 // volume.  The Scanner type encapsulates all of the context related to
 // iterating over nvlist entries.
 type Scanner struct {
-	r                io.Reader        // io.Reader for reading scanned data.
+	r                io.Reader // io.Reader for reading scanned data.
+	withheader       bool
 	byteOrder        binary.ByteOrder // Byte order of the values being read.
 	header           Header           // Non-repeating portion of nvlist that contains the encoding type and byte order of the data in the list being scanned.
 	list             ListMeta         // Non-repeating data encoding the nvlist version and any flags.
@@ -25,15 +26,30 @@ type Scanner struct {
 	bytes            []byte
 }
 
-func NewScanner(r io.Reader) (rc *Scanner) {
+func WithoutHeader() func(*Scanner) error {
+	return func(s *Scanner) error {
+		s.withheader = false
+		return nil
+	}
+
+}
+
+func NewScanner(r io.Reader, opts ...func(*Scanner) error) (rc *Scanner) {
 	rc = &Scanner{
-		r: r,
+		r:          r,
+		withheader: true,
+	}
+
+	for _, opt := range opts {
+		opt(rc)
 	}
 
 	// at the moment, byte order doesn't matter.
-	if err := binary.Read(r, binary.BigEndian, &rc.header); err != nil {
-		rc.err = err
-		return
+	if rc.withheader {
+		if err := binary.Read(r, binary.BigEndian, &rc.header); err != nil {
+			rc.err = err
+			return
+		}
 	}
 
 	rc.byteOrder = func() binary.ByteOrder {
