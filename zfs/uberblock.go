@@ -6,6 +6,19 @@ import (
 	"time"
 )
 
+type ActiveUberBlock struct {
+	AShift uint
+	UberBlock
+}
+
+func (a *ActiveUberBlock) Lsize() int {
+	return int(a.UberBlock.RootBP.Props.Lsize()) * (1 << a.AShift)
+}
+
+func (a *ActiveUberBlock) Psize() int {
+	return int(a.UberBlock.RootBP.Props.Psize()) * (1 << a.AShift)
+}
+
 // struct uberblock {
 // 	/*   8 */	uint64_t	ub_magic;			/* UBERBLOCK_MAGIC		*/
 // 	/*   8 */ uint64_t	ub_version;		/* SPA_VERSION			*/
@@ -16,7 +29,6 @@ import (
 // };
 //
 // 168 bytes
-
 // UberBlock -- 1024bits - 128bytes
 // comments cribbed from /usr/src/sys/cddl/boot/zfs/zfssimpl.h
 type UberBlock struct {

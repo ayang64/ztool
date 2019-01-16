@@ -2,7 +2,8 @@
 	map to beginning of directory hierarchy:
 
 	VdevLabel
-		-> RootBlockPointer
+	  -> UberBlock
+		 -> RootBlockPointer
 			-> PhysMetaNote
 */
 
@@ -273,6 +274,26 @@ type DnodePhys struct {
 }
 
 type ZfsCompressionType uint8
+
+const (
+	CompressionInherit   = ZfsCompressionType(iota) // "ZIO_COMPRESS_INHERIT",
+	ComperssionOn                                   // "ZIO_COMPRESS_ON"
+	CompressionOff                                  // "ZIO_COMPRESS_OFF",
+	CompressionLZJB                                 // "ZIO_COMPRESS_LZJB",
+	CompressionEmpty                                // "ZIO_COMPRESS_EMPTY",
+	CompressionGzip1                                // "ZIO_COMPRESS_GZIP_1",
+	CompressionGzip2                                // "ZIO_COMPRESS_GZIP_2",
+	CompressionGzip3                                // "ZIO_COMPRESS_GZIP_3",
+	CompressionGzip4                                // "ZIO_COMPRESS_GZIP_4",
+	CompressionGzip5                                // "ZIO_COMPRESS_GZIP_5",
+	CompressionGzip6                                // "ZIO_COMPRESS_GZIP_6",
+	CompressionGzip7                                // "ZIO_COMPRESS_GZIP_7",
+	ComperssionGzip8                                // "ZIO_COMPRESS_GZIP_8",
+	CompressionGzip9                                //"ZIO_COMPRESS_GZIP_9",
+	CompressionLZE                                  // "ZIO_COMPRESS_ZLE",
+	CompressionLZ4                                  // "ZIO_COMPRESS_LZ4",
+	CompressionFunctions                            // "ZIO_COMPRESS_FUNCTIONS",
+)
 
 func (zct ZfsCompressionType) NewReader(r io.ReadSeeker) io.Reader {
 	switch zct.String() {

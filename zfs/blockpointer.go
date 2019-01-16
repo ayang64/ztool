@@ -6,6 +6,16 @@ import (
 	"log"
 )
 
+// typedef struct blkptr {
+// 	dva_t		blk_dva[SPA_DVAS_PER_BP]; /* Data Virtual Addresses */
+// 	uint64_t	blk_prop;	/* size, compression, type, etc	    */
+// 	uint64_t	blk_pad[2];	/* Extra space for the future	    */
+// 	uint64_t	blk_phys_birth;	/* txg when block was allocated	    */
+// 	uint64_t	blk_birth;	/* transaction group at birth	    */
+// 	uint64_t	blk_fill;	/* fill count			    */
+// 	zio_cksum_t	blk_cksum;	/* 256-bit checksum		    */
+// } blkptr_t;
+
 // SPA data represented as a adata virtual addresses (DVA) - 128bytes
 type BlockPointer struct {
 	Vdevs                 [3]VdevOffset     //  48 bytes

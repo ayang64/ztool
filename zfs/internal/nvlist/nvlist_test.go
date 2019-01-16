@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"github.com/ayang64/ztool/internal/nvlist"
+	"github.com/ayang64/ztool/zfs/internal/nvlist"
 	"os"
 	"testing"
 )

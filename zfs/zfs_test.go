@@ -14,6 +14,61 @@ import (
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 }
+
+// This is the big test.
+func TestZFS(t *testing.T) {
+
+	// get a new filesystem.
+	fs, err := zfs.New(zfs.WithPath(testFilePath()))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ashift, _ := fs.AShift()
+
+	t.Logf("ashift = %d", ashift)
+
+	ubs, err := fs.UberBlocks()
+	ubs = ubs
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ub, err := fs.ActiveUberBlock()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// t.Logf("%#v", ub)
+	ub = ub
+
+	/*
+		for _, ub := range ubs {
+			t.Logf("%#v", ub)
+			t.Logf(">> %v, %d, %d, compression: %s (%d)",
+				ub.RootBP.Props.Embedded(),
+				ub.RootBP.Props.Psize(),
+				ub.RootBP.Props.Lsize(),
+				ub.RootBP.Props.Compression(),
+				ub.RootBP.Props.Compression())
+		}
+	*/
+	for idx, vd := range ub.RootBP.Vdevs {
+		t.Logf("vdev %03d (%d): %#v, gang = %v, disk offset = %d", vd.VDEV, idx, vd, vd.Gang(), vd.Block())
+		t.Logf("    Asize: %d, Size: %d", vd.Asize(), vd.Size)
+	}
+	t.Logf("%s", ub.RootBP)
+
+	t.Logf("ub.Psize() = %d\n", ub.Psize())
+	t.Logf("ub.Lsize() = %d\n", ub.Lsize())
+	t.Logf("ub.RootBP.Props.Psize() = %d", ub.RootBP.Props.Psize())
+	t.Logf("ub.RootBP.Props.Lsize() = %d", ub.RootBP.Props.Lsize())
+
+	t.Logf("%d/%d", ub.RootBP.Vdevs[0].Block(), ub.RootBP.Vdevs[0].Offset)
+}
+
 func testFilePath() string {
 	orStr := func(strs ...string) string {
 		for _, s := range strs {
@@ -74,18 +129,7 @@ func fileReader(t *testing.T) (*os.File, error) {
 	return os.Open(testFilePath())
 }
 
-func TestZfs(t *testing.T) {
-	t.Logf("--------------------------------------")
-	rc, err := os.Open(testFilePath())
-	if err != nil {
-		t.Fatalf("could not open vdev: %v", err)
-		t.FailNow()
-	}
-	rc = rc
-}
-
 func TestFindUberBlocks(t *testing.T) {
-
 	r := func() *os.File {
 		r, err := fileReader(t)
 
@@ -116,11 +160,11 @@ func TestFindUberBlocks(t *testing.T) {
 				t.Logf("vdev %03d: %#v, gang = %v, disk offset = %d", idx, vd, vd.Gang(), vd.Block())
 				t.Logf("    Asize: %d, Size: %d", vd.Asize(), vd.Size)
 			}
+
 			tim := time.Unix(int64(ub.Timestamp), 0)
 			t.Logf("ub.RootBP.Timestamp = %s (%d)", tim, ub.Timestamp)
 		}
 	}
-
 }
 
 func TestFindMOS(t *testing.T) {
