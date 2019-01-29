@@ -1,9 +1,8 @@
 package nvlist
 
 import (
-	"bytes"
-	"encoding/binary"
 	"encoding/json"
+	"io"
 	"os"
 	"testing"
 )
@@ -18,24 +17,18 @@ func TestLooper(t *testing.T) {
 		return ""
 	}
 	path := strOr(os.Getenv("ZFSFILE"), "/obrovsky/recovery/zbackup0")
-	if path == "" {
-		t.Fatalf("path must be set.")
-	}
 	fh, err := os.Open(path)
 	if err != nil {
-		t.Fatalf("could not open %q; %v", path, err)
+		t.Fatalf("could not open %q; %v -- must set ZFSFILE", path, err)
 	}
+
+	// seek to beginning of nvlist and clamp reader to its size.
+	//
+	// zfs nvlist is XDR encoded data that lives between 0x4000 - 0x20000 on the volume.
 	fh.Seek(0x4000, 0)
-	nvlist := make([]byte, 0x1c000)
-	if err := binary.Read(fh, binary.LittleEndian, nvlist); err != nil {
-		t.Fatal(err)
-	}
+	nvr := io.LimitReader(fh, 0x1c000)
 
-	// now that nvlist is a byte slice, we can make it a
-	// bytes.Reader
-	br := bytes.NewReader(nvlist)
-
-	m, err := Read(br)
+	m, err := Read(nvr)
 
 	if err != nil {
 		t.Fatal(err)
