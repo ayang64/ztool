@@ -1,10 +1,12 @@
-package nvlist
+package nvlist_test
 
 import (
 	"encoding/json"
 	"io"
 	"os"
 	"testing"
+
+	"github.com/ayang64/ztool/zfs/internal/nvlist"
 )
 
 func TestLooper(t *testing.T) {
@@ -28,7 +30,7 @@ func TestLooper(t *testing.T) {
 	fh.Seek(0x4000, 0)
 	nvr := io.LimitReader(fh, 0x1c000)
 
-	m, err := Read(nvr)
+	m, err := nvlist.Read(nvr)
 
 	if err != nil {
 		t.Fatal(err)
