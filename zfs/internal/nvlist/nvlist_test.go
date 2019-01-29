@@ -27,8 +27,7 @@ func TestLooper(t *testing.T) {
 	// seek to beginning of nvlist and clamp reader to its size.
 	//
 	// zfs nvlist is XDR encoded data that lives between 0x4000 - 0x20000 on the volume.
-	fh.Seek(0x4000, 0)
-	nvr := io.LimitReader(fh, 0x1c000)
+	nvr := io.NewSectionReader(fh, 0x4000, 0x1c000)
 
 	m, err := nvlist.Read(nvr)
 
