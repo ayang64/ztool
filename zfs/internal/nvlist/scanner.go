@@ -27,7 +27,6 @@ func NewScanner(r io.Reader) (rc *Scanner) {
 		r: r,
 	}
 
-	// at the moment, byte order doesn't matter.
 	if err := binary.Read(r, binary.BigEndian, &rc.header); err != nil {
 		rc.err = err
 		return
@@ -40,12 +39,10 @@ func NewScanner(r io.Reader) (rc *Scanner) {
 		return binary.LittleEndian
 	}()
 
-	// if err := binary.Read(r, rc.byteOrder, &rc.list); err != nil {
 	if err := binary.Read(r, rc.byteOrder, &rc.list); err != nil {
 		rc.err = err
 		return
 	}
-
 	return
 }
 

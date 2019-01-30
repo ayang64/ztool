@@ -1,9 +1,12 @@
 package nvlist_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
+	"log"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/ayang64/ztool/zfs/internal/nvlist"
@@ -18,18 +21,34 @@ func TestLooper(t *testing.T) {
 		}
 		return ""
 	}
-	path := strOr(os.Getenv("ZFSFILE"), "/obrovsky/recovery/zbackup0")
-	fh, err := os.Open(path)
+	volpath := strOr(os.Getenv("ZFSFILE"), "/obrovsky/recovery/zbackup0")
+	fh, err := os.Open(volpath)
 	if err != nil {
-		t.Fatalf("could not open %q; %v -- must set ZFSFILE", path, err)
+		t.Fatalf("could not open %q; %v -- must set ZFSFILE", volpath, err)
 	}
 
-	// seek to beginning of nvlist and clamp reader to its size.
-	//
-	// zfs nvlist is XDR encoded data that lives between 0x4000 - 0x20000 on the volume.
-	nvr := io.NewSectionReader(fh, 0x4000, 0x1c000)
+	reader := func() io.Reader {
+		switch path.Ext(volpath) {
+		case ".cache":
+			// concatinate a few bytes
+			inf, err := os.Open(volpath)
+			if err != nil {
+				log.Fatal(err)
+			}
+			return io.MultiReader(bytes.NewReader([]byte{0x0, 0x1, 0x0, 0x0}), inf)
+		default:
+			// zfs nvlist is XDR encoded data that lives between 0x4000 - 0x20000 on the volume.
+			// return a section reader covering that range.
+			//
+			// this could easily be:
+			//
+			// io.NewSectionReader(fh, 0x4000, 0x1c000)
+			fh.Seek(0x4000, 0)
+			return io.LimitReader(fh, 0x1c000)
+		}
+	}
 
-	m, err := nvlist.Read(nvr)
+	m, err := nvlist.Read(reader())
 
 	if err != nil {
 		t.Fatal(err)
