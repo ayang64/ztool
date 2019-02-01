@@ -18,13 +18,13 @@ import (
 	"github.com/pierrec/lz4"
 )
 
-type VdevOffset struct {
+type DVA struct {
 	VDEV   uint32 // id of vdev
 	Size   uint32 // first byte is GRID (whatever that means) and remaning 3 bytes are ASIZE (allocated size)
 	Offset uint64 // first bit is G (whatever that is) and the remainder is the offset into the vdev
 }
 
-func (vdo *VdevOffset) ReadDnode(r io.Reader) (*DnodePhys, error) {
+func (dva *DVA) ReadDnode(r io.Reader) (*DnodePhys, error) {
 	dn := DnodePhys{}
 
 	if err := binary.Read(r, binary.LittleEndian, &dn); err != nil {
@@ -35,18 +35,18 @@ func (vdo *VdevOffset) ReadDnode(r io.Reader) (*DnodePhys, error) {
 	return &dn, nil
 }
 
-func (vdo *VdevOffset) Asize() int {
-	return int(vdo.Size) & 0x0ffffff
+func (dva *DVA) Asize() int {
+	return int(dva.Size) & 0x0ffffff
 }
 
-func (vdo *VdevOffset) Block() uint64 {
+func (dva *DVA) Block() uint64 {
 	// ZFS talks about data in terms of 512byte blocks. the actual location is
 	// 4mb + (512 * offset) the shift gets rid of the G bit which is stored in
-	// the high order bit of vdo.Offset.
-	return (vdo.Offset << 12) + 0x400000
+	// the high order bit of dva.Offset.
+	return (dva.Offset << 12) + 0x400000
 }
 
-func (vdo *VdevOffset) Gang() bool {
+func (dva *DVA) Gang() bool {
 	// From the "ZFS On Disk Format" document:
 	//
 	// A gang block is a block whose contents contain block pointers. Gang blocks
@@ -61,7 +61,7 @@ func (vdo *VdevOffset) Gang() bool {
 
 	// we do some simple bit shifting to return a bool representing
 	// the most significant bit in our offset.
-	return vdo.Offset&(1<<63) != 0
+	return dva.Offset&(1<<63) != 0
 }
 
 //typedef enum dmu_object_type {

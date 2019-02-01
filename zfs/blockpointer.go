@@ -18,7 +18,7 @@ import (
 
 // SPA data represented as a adata virtual addresses (DVA) - 128bytes
 type BlockPointer struct {
-	Vdevs                 [3]VdevOffset     //  48 bytes
+	Vdevs                 [3]DVA            //  48 bytes
 	Props                 BlockPointerProps //   8 bytes Props
 	Padding               [2]uint64         //	16 bytes padding
 	BirthTransactionGroup uint64            //   8 bytes transaction group for which this block pointer was allocated.
