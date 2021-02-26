@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 )
 
 // typedef struct blkptr {
@@ -30,25 +31,26 @@ type BlockPointer struct {
 }
 
 func (bp BlockPointer) String() string {
-	return fmt.Sprintf("BirthTransactionGroup %d", bp.BirthTransactionGroup) +
-		fmt.Sprintf("Birth: %d", bp.Birth) +
-		fmt.Sprintf("Fill Count: %d", bp.FillCount) +
-		fmt.Sprintf("Checksum: %d\n", bp.ChecksumList) +
-		fmt.Sprintf("  Props = %d (%b)\n", bp.Props, bp.Props) +
-		fmt.Sprintf("  Props.Endian() = %s\n", bp.Props.Endian()) +
-		fmt.Sprintf("  Props.Level() = %d\n", bp.Props.Level()) +
-		fmt.Sprintf("  Props.Type() = %d\n", bp.Props.Type()) +
-		fmt.Sprintf("  Props.Checksum() = %d (%s)\n", bp.Props.Checksum(), bp.Props.ChecksumString()) +
-		fmt.Sprintf("  Props.Lsize() = %d\n", bp.Props.Lsize()) +
-		fmt.Sprintf("  Props.Psize() = %d\n", bp.Props.Psize()) +
-		fmt.Sprintf("  Props.Embedded() = %v\n", bp.Props.Embedded()) +
-		fmt.Sprintf("  Props.Compression() = %d (%s)\n", bp.Props.Compression(), bp.Props.CompressionString())
+	s := strings.Builder{}
+	fmt.Fprintf(&s, "BirthTransactionGroup %d\n", bp.BirthTransactionGroup)
+	fmt.Fprintf(&s, "Birth: %d\n", bp.Birth)
+	fmt.Fprintf(&s, "Fill Count: %d\n", bp.FillCount)
+	fmt.Fprintf(&s, "Checksum: %d\n", bp.ChecksumList)
+	fmt.Fprintf(&s, "  Props = %d (%b)\n", bp.Props, bp.Props)
+	fmt.Fprintf(&s, "  Props.Endian() = %s\n", bp.Props.Endian())
+	fmt.Fprintf(&s, "  Props.Level() = %d\n", bp.Props.Level())
+	fmt.Fprintf(&s, "  Props.Type() = %d\n", bp.Props.Type())
+	fmt.Fprintf(&s, "  Props.Checksum() = %d (%s)\n", bp.Props.Checksum(), bp.Props.ChecksumString())
+	fmt.Fprintf(&s, "  Props.Lsize() = %d\n", bp.Props.Lsize())
+	fmt.Fprintf(&s, "  Props.Psize() = %d\n", bp.Props.Psize())
+	fmt.Fprintf(&s, "  Props.Embedded() = %v\n", bp.Props.Embedded())
+	fmt.Fprintf(&s, "  Props.Compression() = %d (%s)\n", bp.Props.Compression(), bp.Props.CompressionString())
+	return s.String()
 }
 
 func (bp *BlockPointer) GetDnode(r io.ReadSeeker) (*DnodePhys, error) {
 	vdev := 0
 	log.Printf("offset = %d", bp.Vdevs[vdev].Block())
-
 	if _, err := r.Seek(int64(bp.Vdevs[vdev].Block()), io.SeekStart); err != nil {
 		log.Printf("err: %v", err)
 		return nil, err
