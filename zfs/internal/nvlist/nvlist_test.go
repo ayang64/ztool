@@ -1,3 +1,7 @@
+// Copyright 2018 Ayan George.
+// All rights reserved.  Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package nvlist_test
 
 import (
@@ -9,7 +13,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/ayang64/ztool/zfs/internal/nvlist"
+	"github.com/ayang64/ztool/zfs/nvlist"
 )
 
 func TestLooper(t *testing.T) {
