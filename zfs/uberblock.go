@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+type ActiveUberBlock struct {
+	AShift uint
+	UberBlock
+}
+
 // struct uberblock {
 // 	/*   8 */	uint64_t	ub_magic;			/* UBERBLOCK_MAGIC		*/
 // 	/*   8 */ uint64_t	ub_version;		/* SPA_VERSION			*/
@@ -16,7 +21,6 @@ import (
 // };
 //
 // 168 bytes
-
 // UberBlock -- 1024bits - 128bytes
 // comments cribbed from /usr/src/sys/cddl/boot/zfs/zfssimpl.h
 type UberBlock struct {
@@ -32,9 +36,12 @@ type UberBlock struct {
 }
 
 func (ub *UberBlock) MOS(rs io.ReadSeeker) (*DnodePhys, error) {
-	// the MOS is always element 1 in the UberBlocks's Vdev
-	// list.
-	return ub.RootBP.GetRootBlock(rs)
+	/*
+		// the MOS is always element 1 in the UberBlocks's Vdev
+		// list.
+		return ub.RootBP.GetRootBlock(rs)
+	*/
+	return nil, nil
 }
 
 func (ub *UberBlock) String() string {

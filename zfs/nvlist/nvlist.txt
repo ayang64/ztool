@@ -1,0 +1,15 @@
+zfs nvlist on disk format
+
+it is most convenient to talk about offsets in hex
+
+A ZFS vdev label looks as follows:
+
+0    - 8k    blank space
+8k   - 16k   reserved boot header
+16k  - 128k  name/value pairs
+128k -       zfs stuff -- relevant to this.
+
+The portion we're interested in is the 16k - 128k region of name/value pairs.
+
+The offsets of this section is 0x4000 - 0x20000 for a total of 0x1c000 bytes.
+

@@ -2,7 +2,8 @@
 	map to beginning of directory hierarchy:
 
 	VdevLabel
-		-> RootBlockPointer
+	  -> UberBlock
+		 -> RootBlockPointer
 			-> PhysMetaNote
 */
 
@@ -14,16 +15,17 @@ import (
 	"io"
 	"log"
 
-	"github.com/pierrec/lz4"
+	// "github.com/pierrec/lz4"
+	lz4 "github.com/bkaradzic/go-lz4"
 )
 
-type VdevOffset struct {
+type DVA struct {
 	VDEV   uint32 // id of vdev
 	Size   uint32 // first byte is GRID (whatever that means) and remaning 3 bytes are ASIZE (allocated size)
 	Offset uint64 // first bit is G (whatever that is) and the remainder is the offset into the vdev
 }
 
-func (vdo *VdevOffset) ReadDnode(r io.Reader) (*DnodePhys, error) {
+func (dva *DVA) ReadDnode(r io.Reader) (*DnodePhys, error) {
 	dn := DnodePhys{}
 
 	if err := binary.Read(r, binary.LittleEndian, &dn); err != nil {
@@ -34,18 +36,26 @@ func (vdo *VdevOffset) ReadDnode(r io.Reader) (*DnodePhys, error) {
 	return &dn, nil
 }
 
-func (vdo *VdevOffset) Asize() int {
-	return int(vdo.Size) & 0x0ffffff
+func (dva *DVA) Asize() int {
+	return int(dva.Size) & 0x0ffffff
 }
 
-func (vdo *VdevOffset) Block() uint64 {
+func (dva *DVA) Block() uint64 {
 	// ZFS talks about data in terms of 512byte blocks. the actual location is
 	// 4mb + (512 * offset) the shift gets rid of the G bit which is stored in
-	// the high order bit of vdo.Offset.
-	return (vdo.Offset << 9) + 0x400000
+	// the high order bit of dva.Offset.
+
+	mask := uint64(1 << 63)
+	offs := dva.Offset &^ mask
+
+	log.Printf("mask: %064b", mask)
+	log.Printf("offs: %064b", dva.Offset)
+	log.Printf("valu: %064b", offs)
+	log.Printf("offs: %064b", offs<<9)
+	return (offs << 9) + 0x400000
 }
 
-func (vdo *VdevOffset) Gang() bool {
+func (dva *DVA) Gang() bool {
 	// From the "ZFS On Disk Format" document:
 	//
 	// A gang block is a block whose contents contain block pointers. Gang blocks
@@ -60,7 +70,7 @@ func (vdo *VdevOffset) Gang() bool {
 
 	// we do some simple bit shifting to return a bool representing
 	// the most significant bit in our offset.
-	return vdo.Offset&(1<<63) != 0
+	return dva.Offset&(1<<63) != 0
 }
 
 //typedef enum dmu_object_type {
@@ -274,18 +284,44 @@ type DnodePhys struct {
 
 type ZfsCompressionType uint8
 
-func (zct ZfsCompressionType) NewReader(r io.ReadSeeker) io.Reader {
+const (
+	CompressionInherit   = ZfsCompressionType(iota) // "ZIO_COMPRESS_INHERIT",
+	ComperssionOn                                   // "ZIO_COMPRESS_ON"
+	CompressionOff                                  // "ZIO_COMPRESS_OFF",
+	CompressionLZJB                                 // "ZIO_COMPRESS_LZJB",
+	CompressionEmpty                                // "ZIO_COMPRESS_EMPTY",
+	CompressionGzip1                                // "ZIO_COMPRESS_GZIP_1",
+	CompressionGzip2                                // "ZIO_COMPRESS_GZIP_2",
+	CompressionGzip3                                // "ZIO_COMPRESS_GZIP_3",
+	CompressionGzip4                                // "ZIO_COMPRESS_GZIP_4",
+	CompressionGzip5                                // "ZIO_COMPRESS_GZIP_5",
+	CompressionGzip6                                // "ZIO_COMPRESS_GZIP_6",
+	CompressionGzip7                                // "ZIO_COMPRESS_GZIP_7",
+	ComperssionGzip8                                // "ZIO_COMPRESS_GZIP_8",
+	CompressionGzip9                                //"ZIO_COMPRESS_GZIP_9",
+	CompressionLZE                                  // "ZIO_COMPRESS_ZLE",
+	CompressionLZ4                                  // "ZIO_COMPRESS_LZ4",
+	CompressionFunctions                            // "ZIO_COMPRESS_FUNCTIONS",
+)
+
+func (zct ZfsCompressionType) Decompress(dst []byte, src []byte) (int, error) {
 	switch zct.String() {
 	case "ZIO_COMPRESS_INHERIT":
-		return r
+		return 0, nil
 	case "ZIO_COMPRESS_ON":
-		return r
+		return 0, nil
 	case "ZIO_COMPRESS_LZ4":
-		return lz4.NewReader(r)
+		return func(dst []byte, src []byte) (int, error) {
+			d, err := lz4.Decode(dst, src)
+			if err != nil {
+				return 0, err
+			}
+			return len(d), nil
+		}(dst, src)
 	case "ZIO_COMPRESS_ZLE":
-		return r
+		return 0, nil
 	default:
-		return r
+		return func(dst []byte, src []byte) (int, error) { return copy(dst, src), nil }(dst, src)
 	}
 }
 
@@ -343,16 +379,23 @@ type BlockPointerProps uint64
 }
 */
 
+func (bpp BlockPointerProps) Level() int {
+	return int((uint64(bpp) &^ (1 << 63)) >> uint64(56))
+
+}
+
 func (bpp BlockPointerProps) Embedded() bool {
 	return (uint64(bpp>>39) & 0x01) == 1
 }
 
-func (bpp BlockPointerProps) Lsize() uint8 {
-	return uint8(bpp & 0xff)
+// Logical Size - size without compression (decompressed size)
+func (bpp BlockPointerProps) Lsize() int {
+	return int(uint8(bpp&0xff)+1) * 512
 }
 
-func (bpp BlockPointerProps) Psize() uint8 {
-	return uint8((bpp >> 8) & 0xff)
+// Physical Size - size on disk
+func (bpp BlockPointerProps) Psize() int {
+	return int(uint8((bpp>>8)&0xff)+1) * 512
 }
 
 func (bpp BlockPointerProps) Compression() ZfsCompressionType {
