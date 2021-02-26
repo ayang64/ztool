@@ -15,7 +15,8 @@ import (
 	"io"
 	"log"
 
-	"github.com/pierrec/lz4"
+	// "github.com/pierrec/lz4"
+	lz4 "github.com/bkaradzic/go-lz4"
 )
 
 type DVA struct {
@@ -43,7 +44,15 @@ func (dva *DVA) Block() uint64 {
 	// ZFS talks about data in terms of 512byte blocks. the actual location is
 	// 4mb + (512 * offset) the shift gets rid of the G bit which is stored in
 	// the high order bit of dva.Offset.
-	return (dva.Offset << 12) + 0x400000
+
+	mask := uint64(1 << 63)
+	offs := dva.Offset &^ mask
+
+	log.Printf("mask: %064b", mask)
+	log.Printf("offs: %064b", dva.Offset)
+	log.Printf("valu: %064b", offs)
+	log.Printf("offs: %064b", offs<<9)
+	return (offs << 9) + 0x400000
 }
 
 func (dva *DVA) Gang() bool {
@@ -295,18 +304,24 @@ const (
 	CompressionFunctions                            // "ZIO_COMPRESS_FUNCTIONS",
 )
 
-func (zct ZfsCompressionType) NewReader(r io.ReadSeeker) io.Reader {
+func (zct ZfsCompressionType) Decompress(dst []byte, src []byte) (int, error) {
 	switch zct.String() {
 	case "ZIO_COMPRESS_INHERIT":
-		return r
+		return 0, nil
 	case "ZIO_COMPRESS_ON":
-		return r
+		return 0, nil
 	case "ZIO_COMPRESS_LZ4":
-		return lz4.NewReader(r)
+		return func(dst []byte, src []byte) (int, error) {
+			d, err := lz4.Decode(dst, src)
+			if err != nil {
+				return 0, err
+			}
+			return len(d), nil
+		}(dst, src)
 	case "ZIO_COMPRESS_ZLE":
-		return r
+		return 0, nil
 	default:
-		return r
+		return func(dst []byte, src []byte) (int, error) { return copy(dst, src), nil }(dst, src)
 	}
 }
 
@@ -364,16 +379,23 @@ type BlockPointerProps uint64
 }
 */
 
+func (bpp BlockPointerProps) Level() int {
+	return int((uint64(bpp) &^ (1 << 63)) >> uint64(56))
+
+}
+
 func (bpp BlockPointerProps) Embedded() bool {
 	return (uint64(bpp>>39) & 0x01) == 1
 }
 
-func (bpp BlockPointerProps) Lsize() uint8 {
-	return uint8(bpp & 0xff)
+// Logical Size - size without compression (decompressed size)
+func (bpp BlockPointerProps) Lsize() int {
+	return int(uint8(bpp&0xff)+1) * 512
 }
 
-func (bpp BlockPointerProps) Psize() uint8 {
-	return uint8((bpp >> 8) & 0xff)
+// Physical Size - size on disk
+func (bpp BlockPointerProps) Psize() int {
+	return int(uint8((bpp>>8)&0xff)+1) * 512
 }
 
 func (bpp BlockPointerProps) Compression() ZfsCompressionType {

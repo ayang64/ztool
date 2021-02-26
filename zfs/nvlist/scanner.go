@@ -26,12 +26,19 @@ type Scanner struct {
 	bytes            []byte
 }
 
+func WithByteOrder(o binary.ByteOrder) func(*Scanner) error {
+	return func(s *Scanner) error {
+		s.byteOrder = o
+		return nil
+	}
+}
+
 func WithoutHeader() func(*Scanner) error {
 	return func(s *Scanner) error {
+		log.Printf("setting withheader to false.")
 		s.withheader = false
 		return nil
 	}
-
 }
 
 func NewScanner(r io.Reader, opts ...func(*Scanner) error) (rc *Scanner) {
@@ -46,10 +53,14 @@ func NewScanner(r io.Reader, opts ...func(*Scanner) error) (rc *Scanner) {
 
 	// at the moment, byte order doesn't matter.
 	if rc.withheader {
+		log.Printf("scanning header.")
 		if err := binary.Read(r, binary.BigEndian, &rc.header); err != nil {
 			rc.err = err
 			return
 		}
+	} else {
+		log.Printf("skipping header.")
+
 	}
 
 	rc.byteOrder = func() binary.ByteOrder {
@@ -59,7 +70,6 @@ func NewScanner(r io.Reader, opts ...func(*Scanner) error) (rc *Scanner) {
 		return binary.LittleEndian
 	}()
 
-	// if err := binary.Read(r, rc.byteOrder, &rc.list); err != nil {
 	if err := binary.Read(r, rc.byteOrder, &rc.list); err != nil {
 		rc.err = err
 		return

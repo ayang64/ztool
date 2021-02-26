@@ -50,16 +50,24 @@ func TestZFS(t *testing.T) {
 			}
 
 			for idx, vd := range ub.RootBP.Vdevs {
+				t.Logf("compression: %s", ub.RootBP.Props.Compression())
 				t.Logf("vdev %03d (%d): %#v, gang = %v, disk offset = %d", vd.VDEV, idx, vd, vd.Gang(), vd.Block())
 				t.Logf("    Asize: %d, Size: %d", vd.Asize(), vd.Size)
 			}
-			t.Logf("%s", ub.RootBP)
+			t.Logf("ROOTBP: %s", ub.RootBP)
 
-			t.Logf("ub.Psize() = %d\n", ub.Psize())
-			t.Logf("ub.Lsize() = %d\n", ub.Lsize())
 			t.Logf("ub.RootBP.Props.Psize() = %d", ub.RootBP.Props.Psize())
 			t.Logf("ub.RootBP.Props.Lsize() = %d", ub.RootBP.Props.Lsize())
+			t.Logf("ub.RootBP.Props.Type() = %d", ub.RootBP.Props.Type())
+
 			t.Logf("%d/%d", ub.RootBP.Vdevs[0].Block(), ub.RootBP.Vdevs[0].Offset)
+
+			rb, err := fs.GetDnode(&ub.RootBP)
+
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Logf("ROOT BLOCK/MOS: %v", rb)
 		})
 	}
 }

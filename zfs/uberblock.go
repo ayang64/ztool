@@ -11,14 +11,6 @@ type ActiveUberBlock struct {
 	UberBlock
 }
 
-func (a *ActiveUberBlock) Lsize() int {
-	return int(a.UberBlock.RootBP.Props.Lsize()) * (1 << a.AShift)
-}
-
-func (a *ActiveUberBlock) Psize() int {
-	return int(a.UberBlock.RootBP.Props.Psize()) * (1 << a.AShift)
-}
-
 // struct uberblock {
 // 	/*   8 */	uint64_t	ub_magic;			/* UBERBLOCK_MAGIC		*/
 // 	/*   8 */ uint64_t	ub_version;		/* SPA_VERSION			*/
@@ -44,9 +36,12 @@ type UberBlock struct {
 }
 
 func (ub *UberBlock) MOS(rs io.ReadSeeker) (*DnodePhys, error) {
-	// the MOS is always element 1 in the UberBlocks's Vdev
-	// list.
-	return ub.RootBP.GetRootBlock(rs)
+	/*
+		// the MOS is always element 1 in the UberBlocks's Vdev
+		// list.
+		return ub.RootBP.GetRootBlock(rs)
+	*/
+	return nil, nil
 }
 
 func (ub *UberBlock) String() string {

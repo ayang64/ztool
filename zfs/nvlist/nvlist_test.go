@@ -3,6 +3,7 @@ package nvlist_test
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"testing"
 
@@ -46,9 +47,16 @@ func TestLooper(t *testing.T) {
 		Name   string
 		Path   string
 		Offset int64
-		Size   int
+		Size   int64
 		Opts   []func() func(*nvlist.Scanner) error
 	}{
+		{
+			Name:   "OrigData",
+			Path:   "../../../../zbackup-editable",
+			Offset: 0x4000,
+			Size:   0x1c00,
+			Opts:   []func() func(*nvlist.Scanner) error{},
+		},
 		{
 			Name:   "",
 			Path:   "../../../test-data/uncompressed-simple.image",
@@ -74,15 +82,8 @@ func TestLooper(t *testing.T) {
 			defer fh.Close()
 
 			fh.Seek(test.Offset, 0)
-			nvl := make([]byte, test.Size)
 
-			if _, err := fh.Read(nvl); err != nil {
-				t.Fatal(err)
-			}
-
-			br := bytes.NewReader(nvl)
-
-			m, err := nvlist.Read(br)
+			m, err := nvlist.Read(io.LimitReader(fh, test.Size))
 
 			if err != nil {
 				t.Fatal(err)

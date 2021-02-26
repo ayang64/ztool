@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/ayang64/ztool/zfs/internal/nvlist"
+	"github.com/ayang64/ztool/zfs/nvlist"
 )
 
 type cache struct {
@@ -67,6 +67,10 @@ func New(opts ...func(*Filesystem) error) (*Filesystem, error) {
 	}
 
 	return &rc, nil
+}
+
+func (fs *Filesystem) GetDnode(bp *BlockPointer) (*DnodePhys, error) {
+	return bp.GetDnode(fs.rs)
 }
 
 func (fs *Filesystem) LoadVdevLabel() error {
