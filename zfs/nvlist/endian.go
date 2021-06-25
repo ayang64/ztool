@@ -26,9 +26,10 @@ func (e Endian) ByteOrder() binary.ByteOrder {
 		return binary.BigEndian
 	case LittleEndian:
 		return binary.LittleEndian
+	default:
+		// unknown byte order value
+		return nil
 	}
-	// unknown byte order value
-	return nil
 }
 
 func (e Endian) String() string {
@@ -37,6 +38,7 @@ func (e Endian) String() string {
 		return "BigEndian"
 	case LittleEndian:
 		return "LittleEndian"
+	default:
+		return fmt.Sprintf("*ERROR-INVALID-ENDIAN-VALUE-%02x*", int8(e))
 	}
-	return fmt.Sprintf("*ERROR-INVALID-ENDIAN-VALUE-%02x*", int8(e))
 }

@@ -205,8 +205,9 @@ func (s *Scanner) ValueString() string {
 		return fmt.Sprintf("%d", v)
 	case string:
 		return v
+	default:
+		return "*unrepresentable*"
 	}
-	return "*unrepresentable*"
 }
 
 func (s *Scanner) ReadString(r io.Reader) (string, error) {
@@ -281,7 +282,6 @@ func (s *Scanner) Next() bool {
 
 	// read the name of the field
 	name, err := s.ReadString(br)
-
 	if err != nil {
 		s.err = err
 		return false
@@ -290,7 +290,6 @@ func (s *Scanner) Next() bool {
 	s.fieldName = name
 
 	typ, err := s.ReadType(br)
-
 	if err != nil {
 		s.err = err
 		return false
@@ -299,7 +298,6 @@ func (s *Scanner) Next() bool {
 	s.fieldType = typ
 
 	nelements, err := s.ReadNumElements(br)
-
 	if err != nil {
 		s.err = err
 		return false
@@ -308,7 +306,6 @@ func (s *Scanner) Next() bool {
 	s.fieldNumElements = int(nelements)
 
 	value, err := s.ReadValue(br, s.fieldType)
-
 	if err != nil {
 		s.err = err
 		return false
@@ -320,17 +317,9 @@ func (s *Scanner) Next() bool {
 }
 
 func (s *Scanner) NewSubScanner(r io.Reader) (rc *Scanner) {
-	rc = &Scanner{
-		r:         r,
-		byteOrder: s.byteOrder,
-	}
-
-	// if err := binary.Read(r, rc.byteOrder, &rc.list); err != nil {
+	rc = &Scanner{r: r, byteOrder: s.byteOrder}
 	if err := binary.Read(r, s.byteOrder, &rc.list); err != nil {
 		rc.err = err
-		return
 	}
-
 	return
-
 }
