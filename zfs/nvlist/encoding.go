@@ -25,6 +25,7 @@ func (e Encoding) String() string {
 		return "EncodingNative"
 	case EncodingXDR:
 		return "EncodingXDR"
+	default:
+		return fmt.Sprintf("*UNKNOWN-ENCODING-%02x*", uint8(e))
 	}
-	return fmt.Sprintf("*UNKNOWN-ENCODING-%02x*", uint8(e))
 }
